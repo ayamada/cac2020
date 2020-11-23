@@ -88,12 +88,12 @@
 (defn- ^:dev/before-load stop! []
   (try
     (stub! game/lifecycle)
-    (catch :default e nil))
-  (js/console.log "stubbed by hot-reloading"))
+    (catch :default e
+      (js/console.log e))))
 
 (defn- ^:dev/after-load start! []
   (try
     (graft! game/lifecycle)
-    (catch :default e nil))
-  (js/console.log "grafted by hot-reloading"))
+    (catch :default e
+      (js/console.log e))))
 

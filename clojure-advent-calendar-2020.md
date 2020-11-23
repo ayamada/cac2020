@@ -1,3 +1,6 @@
+これは [Clojure Advent Calendar 2020](https://qiita.com/advent-calendar/2020/clojure) 12日目の記事です。
+
+
 # shadow-cljsあれこれ
 
 TODO: もっとよい記事タイトルを考えましょう
@@ -9,7 +12,7 @@ TODO: もっとよい記事タイトルを考えましょう
     - cljsをビルドするやつ
     - ビルドツールとしてnpmを使い、leinやclojureコマンドなしで動く
         - `project.clj` や `deps.edn` の代わりに、npm用の `package.json` と専用設定の `shadow-cljs.edn` を書く
-    - もっと詳しい情報は @iku000888 さんの去年のclojure-advent-calendarの記事 https://qiita.com/iku000888/items/5c12c999c0d49cc2c4b0 がある
+    - もっと詳しい情報は @iku000888 さんの去年のclojure-advent-calendarの記事 https://qiita.com/iku000888/items/5c12c999c0d49cc2c4b0 があります
     - あるいは公式マニュアルを順番に見ていくなど https://shadow-cljs.github.io/docs/UsersGuide.html
 
 
@@ -51,8 +54,8 @@ TODO: もっとよい記事タイトルを考えましょう
 
 - 総合的には？
     - 総合的には非常に使えるレベルで、lein-cljsbuildやfigwheel-mainから乗り換える価値は十分にある。project.cljやdeps.edn連携も一応ある(自分は使った事ないのでどのくらいちゃんと動くかは不明)
-    - 「jvmからの脱却」を検討するような人には非常にオススメできる
-    - ハードルになりそうなのは「ビルドツールがnpm」というところ。package.jsonのメンテをしなくてはならない
+    - 「jvmからの脱却」を検討してしまうような人にオススメ
+    - ハードルは「ビルドツールがnpm」というところ。package.jsonのメンテをしなくてはならない
         - [lein-shadow](https://clojars.org/lein-shadow) とかを使えば避けられる？(よく知らない)
 
 
@@ -90,8 +93,8 @@ TODO: もっとよい記事タイトルを考えましょう
         - この環境変数はnpmが提供している。このプロジェクトのpackage.jsonのscriptsに `"env": "env"` を入れてあるので、 `npm run env|sort` して、どういう環境変数が設定されているのか見てみよう
         - もちろん自分で好きな環境変数を設定して渡してもok。npmでは `.env` というファイルで環境変数を渡せるようだ(詳細未確認)
 - externしよう
-    - shadow-cljsでは `:infer-externs :auto` する事により、externしていないjsのmethod/property参照は警告を出してくれるし、externするのもmethod/property元のオブジェクトに `^js` のtype hintをつけるだけ。かんたん！
-    - もちろん別ファイルで用意してもok
+    - shadow-cljsでは `:infer-externs :auto` すると、リリース版ビルド時にexternしていないjsのmethod/property参照は警告を出してくれるらしい。externするのはmethod/property元のオブジェクトに `^js` のtype hintをつけるだけ。かんたん！
+    - これまで通り、別ファイルでextern定義を用意してもok
 
 
 
@@ -116,28 +119,34 @@ TODO: もっとよい記事タイトルを考えましょう
 今後の課題
 
 - electronでデスクトップアプリ化しよう → これは簡単
-- cordova系の何かでスマホアプリ化しよう → ？？？？？？
+- サーバサイドもcljsのnode向け出力で書こう → jvm資産の代わりにnpm資産を使う必要あり、しんどい
+- cordova系の何かでスマホアプリ化しよう → 未知の領域
 
 
 
 ## よくある問題
 
 - なんかよくわからないけどエラーが出るようになった！
-    - 多分 `.shadow-cljs/` がこわれてます。一回消してビルドし直してみましょう
+    - 多分 `.shadow-cljs/` がこわれてます。一回消してビルドし直してみましょう。このリポジトリでは `npm run clean` で消せます
 
 - 自作spaアプリをアップデートした！でもなんかアップデート前のデータがブラウザにキャッシュされてる！
     - spaアプリ自体を設置するpathにリリース数値の層(ディレクトリ)を入れて、アップデート毎に別urlになるようにするのが無難です
     - shadow-cljsでは `:release-version "v1"` をつけておくと、生成されるjsファイルの名前が `cljs/main.v1.js` みたいになる。しかしこれをする場合は当然htmlの方にもjsファイル名変更指定が必要になるので面倒
-    - そもそも大体これが問題になるのはjsファイルではなく、xhrでjsonとか画像とかロードする時なので、xhrでロードするurlの末尾に `?12345678(タイムスタンプ)` みたいなのをつける手もある。でもこれはこれで別の問題になる事がたまにある。だから一番最初に書いたやり方が一番マシだと思う
+    - そもそも大体これが問題になるのはどちらかというとjsファイルではなく、xhrでjsonとか画像とかロードする時。なのでxhrでロードするurlの末尾に `?12345678(タイムスタンプ)` みたいなのをつける手もある。でもこれはこれで別の問題になる事がたまにある。だから一番最初に書いたやり方が一番マシだと思う
 
 - npm色々しんどい！
     - ワカル
 
-- ie弾きたい！
-    - このプロジェクトの `public/index.html` に、色々と試行錯誤した結果が入ってます(ただし実際のieでの動作は未確認)
-        - 「ieだったらメッセージ書き換えて何もしない、ie以外なら本体のjsファイルをロードして処理を進める」という処理になってます。edgeは許された
 
 
+## 個人的な主張
+
+- みんなcljsでゲーム作ろうぜ
+    - アツマールやitch.ioに置けるぜ
+    - デスクトップアプリ化して、dlsiteやsteamとかで販売できるぜ
+    - スマホアプリ化して、google playやapp storeに置くのも視野に入るぜ(できるとは言ってない)
+    - nintendo switch上で動かすのも視野に入るぜ(公式にはパブリッシャーを通す必要あり)
+    - 生domや仮想domにあんまり悩まされないぜ(少しは悩まされる)
 
 
 
