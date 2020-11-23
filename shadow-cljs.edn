@@ -1,0 +1,44 @@
+{:dev-http {8020 {:root "public"}}
+ :source-paths ["src/main" "src/dev"]
+ :dependencies []
+ :builds {:app {:target :browser
+                ;; デフォルトでは public/js/ 配下にコンパイル結果が
+                ;; 生成されるが、ここは他のjsファイルを置く可能性も高いので、
+                ;; 生成先を変更しておく
+                ;; (こうしておかないと、clean時に消しづらい為)
+                :output-dir "public/cljs"
+                :asset-path "cljs"
+                ;; NB: :modulesのkey名がjsファイル名になる。
+                ;;     :main なら cljs/main.js になる
+                :modules {:main {:entries [cac2020.core]
+                                 :init-fn cac2020.core/init}}
+                :closure-defines {cac2020.util/VERSION #shadow/env ["npm_package_version"]}
+                ;; NB: :optimizationsは:devでは自動的に:noneとなるとの事
+                ;;     (他にも:devと:prodとでデフォルト値の違う項目あり)
+                ;;     またcljsで有効なオプションの多くがshadow-cljsでは
+                ;;     無効化されている(shadow-cljs自身が制御する目的で)。
+                ;;     これらが必要な場合はpackage.jsonもしくは
+                ;;     shadow-cljs.ednから指定すればよいようだ。
+                :compiler-options {:optimizations :advanced
+                                   :output-feature-set :es5
+                                   ;; ^js のtype hintをつける事で、
+                                   ;; 自動的にextern定義をしてくれるとの事
+                                   :infer-externs :auto
+                                   ;; しかし、必要ならexternsファイル
+                                   ;; を指定する事も可能なようだ
+                                   ;; :externs []
+                                   ;; 以下のようにして不要なコードを除去
+                                   ;; する事でサイズ削減ができるようだが、
+                                   ;; 扱いが難しいようだ
+                                   ;:strip-type-prefixes #{"cljs.pprint"}
+                                   }
+                ;; 開発時のみ適用したい設定はここに書く
+                :dev {;:closure-defines {}
+                      ;:compiler-options {}
+                      }
+                ;; リリース時のみ適用したい設定はここに書く
+                :release {;:closure-defines {}
+                          ;:compiler-options {} ; 必要なら
+                          }
+                }
+          }}

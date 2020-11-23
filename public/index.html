@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="viewport" content="user-scalable=no" />
+    <style>
+
+    </style>
+    <title>cac2020</title>
+  </head>
+  <body style="background-color:black; color:white; padding:0; margin:0; overscroll-behavior:none;">
+    <div id="bootstrap-loading-box" style="position:absolute; top:50%; left:50%; transform: translate(-50%,-50%)"><span style="display: inline-block; border:4px solid white; margin:0; padding:2em; font-family:serif">LOADING</span></div>
+    <script type="text/javascript">
+      (function(ua,d,cont){if((ua.indexOf('msie')!=-1)||(ua.indexOf('trident')!=-1)){d.firstChild.textContent='Internet Explorerでは動作しません'}else{cont(d)}})((window.navigator.userAgent||'').toLowerCase(),document.getElementById('bootstrap-loading-box'),function(d){
+        function loadScript (path) {
+          var script = document.createElement('script');
+          script.type = 'text/javascript';
+          script.src = path;
+          script.async = false;
+          document.body.appendChild(script);
+        }
+
+        document.body.onload = function () {
+          d.remove();
+          window.cac2020bootstrap();
+        };
+        loadScript("cljs/main.js");
+      })
+    </script>
+  </body>
+</html>
