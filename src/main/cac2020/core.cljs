@@ -86,10 +86,14 @@
 
 
 (defn- ^:dev/before-load stop! []
-  (stub! game/lifecycle)
+  (try
+    (stub! game/lifecycle)
+    (catch :default e nil))
   (js/console.log "stubbed by hot-reloading"))
 
 (defn- ^:dev/after-load start! []
-  (graft! game/lifecycle)
+  (try
+    (graft! game/lifecycle)
+    (catch :default e nil))
   (js/console.log "grafted by hot-reloading"))
 
