@@ -2,14 +2,11 @@
   (:require [clojure.string :as string]
             ["pixi.js" :as pixi]
             ["va5" :as va5]
-            [cac2020.util :as util]
+            [cac2020.util :as util :include-macros true]
+            [cac2020.space :as space]
             ))
 
 
-
-;;; 背景どうする？
-;;; - 星の流れる宇宙/夜空
-;;; - 写真の背景(雲が流れる)
 
 
 ;;; - ゲーム内容候補
@@ -23,6 +20,22 @@
 ;;;             - 他のゲーム内容を検討する？クリックゲー？
 ;;;     - 画面奥からフルーツとゴリラが射出される、フルーツだけをクリックする
 ;;;         - かなりネコゴに近い奴だと思う
+;;;     - ゲームオーバー判定は？
+;;;         - 一定時間経過？(この場合はフルーツゲットでタイム回復？
+;;;         - ゴリラクリック？
+
+;;; - とりあえず「フルーツをクリック」という部分が動かないのであれば、フルーツ画像を投入すべきでは？
+
+
+
+
+;;; pico-8金髪緑服。11x15。
+(def dataurl-pico-elf
+  (util/str* "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAsAAAAPCAYAAAAy"
+             "PTUwAAAAe0lEQVQoka2QwQmAMAxFM1fFHXoxOIKDdBBPnoRO0hkcoEcvuZTvSb"
+             "GYBkEDj1zeD0mIPhQUdLHk8YEWUMVWACWP2JeuwpT9KpAUISnCr2LLp3hiyi7w"
+             "tYILbB85bUOFC6yLkiJc4ApJsfnrV1Oba1gyERFm7nHvv8lmHV7o1UPbOatgAA"
+             "AAAElFTkSuQmCC"))
 
 
 
@@ -34,6 +47,7 @@
 
 
 (defn- preload! []
+  ;; TODO: きちんとロード完了を監視すべき
   (util/load-audio! :se/caret-psg
                     :se/submit-psg
                     :se/lvup-midi
@@ -68,14 +82,14 @@
                          :anchor/y 0.5
                          :x (* s-w 0.5)
                          :y (* s-h 0.4)
-                         :name "gameover-caption")
+                         :name (name :gameover-caption))
    (util/set-properties! (util/make-button "再挑戦"
                                            emit-retry!
                                            :padding 64
                                            )
                          :x (* s-w 0.5)
                          :y (* s-h 0.7)
-                         :name "replay-button")
+                         :name (name :replay-button))
    ])
 
 (defn- emit-gameover! []
@@ -120,27 +134,64 @@
                          :anchor/y 1
                          :x 8
                          :y (- s-h 8)
-                         :name "version-label")
+                         :name (name :version-label))
    (util/set-properties! (util/make-label "タイトル未定"
                                           :font-size 96
                                           )
                          :anchor/x 0.5
                          :anchor/y 0.5
                          :x (* s-w 0.5)
-                         :y (* s-h 0.3)
-                         :name "title-caption")
+                         :y (* s-h 0.25)
+                         :name (name :title-caption))
+   (util/set-properties! (pixi/Sprite.from dataurl-pico-elf)
+                         :anchor/x 0.5
+                         :anchor/y 0.5
+                         :scale/x 8
+                         :scale/y 8
+                         :x (* s-w 0.5)
+                         :y (* s-h 0.5)
+                         :name (name :start-button))
    (util/set-properties! (util/make-button "START"
                                            emit-start!
                                            :padding 64
                                            )
                          :x (* s-w 0.5)
-                         :y (* s-h 0.7)
-                         :name "start-button")
+                         :y (* s-h 0.8)
+                         :name (name :start-button))
    ])
+
+
+
 
 (defn- make-tree [s-w s-h]
   [:root
-   [:back-layer]
+   (util/set-properties! (util/sp16x16)
+                         :name (name :background-black)
+                         :tint 0x00001F
+                         :x -64
+                         :y -64
+                         :width (+ s-w 128)
+                         :height (+ s-h 128)
+                         )
+   (let [margin 256
+         s-left (- 0 margin)
+         s-right (+ s-w margin)
+         s-top (- 0 margin)
+         s-bottom (+ s-h margin)
+         z-nearest 0
+         z-near 0.01
+         z-far 0.9
+         z-farthest 1.0
+         sightbox (space/make-sightbox s-left s-right s-top s-bottom
+                                       z-nearest z-near z-far z-farthest)
+         ]
+     (util/set-properties! (space/make-background-space-layer sightbox
+                                                              0 0 0
+                                                              128
+                                                              )
+                           :name (name :background-space-layer)))
+   [:back-layer
+    ]
    [:main-layer]
    [:front-layer]
    (make-gameover-layer s-w s-h)
@@ -170,21 +221,27 @@
   ;(prn 'destroy!)
   ;; TODO: きちんとpixiの各インスタンスを破棄する(メモリリークの元になるので)
   ;; TODO: きちんとa-state内のものを破棄する
-  (reset! a-state {})
-  )
+  (reset! a-state {}))
 
 (defn- tick! [app delta-msec]
-  ;(prn 'tick! delta-msec)
-  ;; TODO
-  )
+  (let [root (:root @a-state)
+        ]
+    (when-let [layer (util/get-child root :background-space-layer)]
+      ;; 状況に応じて速度を変更したりする
+      (let [move-x (* delta-msec 1.5)
+            move-y (* delta-msec 1.5)
+            move-z (* delta-msec 0.005)
+            ]
+        (space/update-background-space-layer! layer move-x move-y move-z)))
+    ;; TODO
+    ))
 
 
 
 (def lifecycle
   {:create create!
    :tick tick!
-   :destroy destroy!
-   })
+   :destroy destroy!})
 
 
 

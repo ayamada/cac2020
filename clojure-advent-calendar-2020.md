@@ -102,6 +102,8 @@ TODO: もっとよい記事タイトルを考えましょう
 
 - ゲームのversioningルールについて
     - http://rnkv.hatenadiary.jp/entry/2020/11/15/192228
+- リリース版で開発向けコードの除去をする
+    - `(when ^boolean js/goog.DEBUG ...)` とすれば、コンパイラが勝手にこのブロックを除去してくれるとの事。 `^boolean` のtype hintがないと `if (cljs.core._truth(goog.DEBUG)){...}` というjsに展開されてしまいコード除去されなくなるとの事
 - リリースビルドのやりかた
     - lein clean相当のやりかた
         - TODO

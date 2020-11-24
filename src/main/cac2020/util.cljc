@@ -1,8 +1,10 @@
 (ns cac2020.util
+  #?(:cljs (:require-macros [cac2020.util :as m]))
   (:require [clojure.string :as string]
             #?(:cljs ["pixi.js" :as pixi])
             #?(:cljs ["va5" :as va5])
             ))
+
 
 
 (defn kebab-string->camel-string [s]
@@ -28,9 +30,85 @@
 
 
 
+
+
+(declare immediate-map?)
+
+;;; 「引数が全て即値ならマクロ展開、一つでも変数やlazy-seq等を含むなら関数展開」
+;;; を実装する際に使う判定関数
+(defn immediate-value? [v]
+  (cond
+    (nil? v) true
+    (true? v) true
+    (false? v) true
+    (keyword? v) true
+    (string? v) true
+    (number? v) true
+    (symbol? v) false
+    (vector? v) (every? immediate-value? v)
+    (set? v) (every? immediate-value? v)
+    (map? v) false ;(immediate-map? v) ; NB: 扱いがややこしいので除外する事に
+    (coll? v) false
+    :else true))
+
+(defn immediate-map? [m]
+  ;; immediate-mapの要件は「全てのkeyがimmediate-valueである事」。
+  ;; (valはimmediate-valueである必要はない)
+  (when (map? m)
+    (every? immediate-value? (keys m))))
+
+
 #?(:clj (do
 
-;;; TODO: defmacro系をここに書く
+(defmacro str* [& args]
+  (assert (every? immediate-value? args))
+  (apply str args))
+
+
+
+
+(defmacro set-properties! [o & args]
+  (assert (even? (count args)))
+  (let [kv-list (partition 2 args)
+        ok-list (filter (fn [[k v]] (keyword? k)) kv-list)
+        ng-list (remove (fn [[k v]] (keyword? k)) kv-list)
+        o' `o#
+        ok-bodies (map (fn [[k v]]
+                         (let [nsk-str (when-let [nsk (namespace k)]
+                                         (kebab-string->camel-string nsk))
+                               nk-str (kebab-string->camel-string (name k))]
+                           (if nsk-str
+                             `(when-let [o# (aget ~o' ~nsk-str)]
+                                (aset o# ~nk-str ~v))
+                             `(aset ~o' ~nk-str ~v))))
+                       ok-list)
+        ng-body (if (empty? ng-list)
+                  o'
+                  `(-set-properties! ~o' ~@(apply concat ng-list)))]
+    `(let [~o' ~o]
+       ~@ok-bodies
+       ~ng-body)))
+
+
+
+(defmacro set-property! [o & args] `(set-properties! ~o ~@args))
+
+
+
+(defmacro property [o k]
+  (if-not (keyword? k)
+    `(-property ~o ~k)
+    (let [nsk-str (when-let [nsk (namespace k)]
+                    (kebab-string->camel-string nsk))
+          nk-str (kebab-string->camel-string (name k))]
+      (if nsk-str
+        `(when-let [o# (aget ~o ~nsk-str)]
+           (aget o# ~nk-str))
+        `(aget ~o ~nk-str)))))
+
+
+
+
 
 
           ))
@@ -43,6 +121,68 @@
 
 
 (goog-define VERSION "0.0.0-FAILED_AUTOGENERATE")
+
+
+
+
+(defn spy [v]
+  (when ^boolean js/goog.DEBUG
+    (prn :spy v))
+  v)
+
+
+
+
+
+
+
+
+
+(defn -set-properties! [o & args]
+  (when o
+    (assert (even? (count args)))
+    (loop [kv-list args]
+      (when-not (empty? kv-list)
+        (let [k (first kv-list)
+              v (second kv-list)
+              nsk (when (or (keyword? k) (symbol? k))
+                    (namespace k))
+              nk (name k)
+              o (if nsk
+                  (aget o (kebab-string->camel-string nsk))
+                  o)]
+          (assert o)
+          (aset o (kebab-string->camel-string nk) v)
+          (recur (nnext kv-list)))))
+    o))
+
+(def -set-property! -set-properties!)
+
+(defn -property [^js o k]
+  (if (or (keyword? k) (symbol? k))
+    (let [nsk (namespace k)
+          nk (name k)
+          o (if nsk
+              (aget o (kebab-string->camel-string nsk))
+              o)]
+      (aget o (kebab-string->camel-string nk)))
+    (aget o k)))
+
+
+(defn merge-properties! [o m]
+  (doseq [[k v] m]
+    (-set-properties! o k v))
+  o)
+
+(defn map->js-obj [m]
+  (let [o (js-obj)]
+    (merge-properties! o m)
+    o))
+
+
+
+
+
 
 
 (defn set-style! [^js dom & style-kvs]
@@ -88,44 +228,7 @@
 
 
 
-(defn merge-obj! [^js o m]
-  (when o
-    (doseq [[k v] m]
-      (let [nsk (namespace k)
-            nk (name k)
-            o (if nsk
-                (aget o (kebab-string->camel-string nsk))
-                o)]
-        (assert o)
-        (aset o (kebab-string->camel-string nk) v)))
-    o))
 
-
-(defn set-properties! [o & args]
-  (when o
-    (if (= (count args) 1)
-      (merge-obj! o (first args))
-      (loop [kv-list args]
-        (if (empty? kv-list)
-          o
-          (let [k (first kv-list)
-                v (second kv-list)
-                nsk (namespace k)
-                nk (name k)
-                o (if nsk
-                    (aget o (kebab-string->camel-string nsk))
-                    o)]
-            (assert o)
-            (aset o (kebab-string->camel-string nk) v)
-            (recur (nnext kv-list))))))))
-
-(def set-property! set-properties!)
-
-
-(defn clj->js-obj [& args]
-  (let [o (js-obj)]
-    (merge-obj! o (args->map args))
-    o))
 
 
 
@@ -148,11 +251,11 @@
                      (next tree-src)
                      tree-src)]
       (when c-name
-        (set-property! c :name c-name))
+        (-set-property! c :name c-name))
       (doseq [child children]
         (cond
           (nil? child) nil
-          (map? child) (set-properties! c child)
+          (map? child) (merge-properties! c child)
           (or
             (keyword? child)
             (symbol? child)
@@ -180,7 +283,7 @@
                         :stroke-thickness 8
                         }
                        (args->map args))
-        style (pixi/TextStyle. (clj->js-obj options))
+        style (pixi/TextStyle. (map->js-obj options))
         label (pixi/Text. label-string style)]
     label))
 
@@ -220,7 +323,7 @@
         bg-inner-y (* ratio-y inner-h)
         label-x (* ratio-x label-w)
         label-y (* ratio-y label-h)
-        ^js bg-inner (set-properties! (sp16x16)
+        ^js bg-inner (-set-properties! (sp16x16)
                                       :tint bg-color
                                       :width inner-w
                                       :height inner-h
@@ -228,7 +331,7 @@
                                       :anchor/y 0.5
                                       :x bg-inner-x
                                       :y bg-inner-y)
-        ^js bg-outer (set-properties! (sp16x16)
+        ^js bg-outer (-set-properties! (sp16x16)
                                       :tint outline-color
                                       :width outer-w
                                       :height outer-h
@@ -245,7 +348,7 @@
                  (when click-handle
                    (click-handle c)))
         ]
-    (set-properties! label
+    (-set-properties! label
                      :anchor/x 0.5
                      :anchor/y 0.5
                      :x label-x
@@ -281,11 +384,11 @@
 (defn bgm! [k & args]
   (if-not k
     (va5/stopBgm)
-    (va5/bgm (resolve-audio-path k) (clj->js-obj args))))
+    (va5/bgm (resolve-audio-path k) (map->js-obj (args->map args)))))
 
 (defn se! [k & args]
   (when k
-    (va5/se (resolve-audio-path k) (clj->js-obj args))))
+    (va5/se (resolve-audio-path k) (map->js-obj (args->map args)))))
 
 
 
@@ -313,7 +416,10 @@
         prevent-default-with-focus! (fn [^js e]
                                       (.preventDefault e)
                                       (when-let [^js target (.-target e)]
-                                        (when (.-focus target)
+                                        (when (and
+                                                (.-focus target)
+                                                (not (#{"HTML" "html"}
+                                                       (.-tagName target))))
                                           (.focus target focus-options)))
                                       false)
         ]

@@ -2,7 +2,7 @@
   (:require [clojure.string :as string]
             ["pixi.js" :as pixi]
             [cac2020.game :as game]
-            [cac2020.util :as util]
+            [cac2020.util :as util :include-macros true]
             ))
 
 
@@ -10,6 +10,7 @@
 (def screen-w 960)
 (def screen-h 960)
 
+(def bg-style "url('bg.png')")
 
 
 ;;; TODO: singleton実装なのはよくない、なおしたい
@@ -40,6 +41,11 @@
 
 
 
+(defn- add-bg-image! []
+  (when bg-style
+    (set! js/document.body.style.backgroundImage bg-style)
+    (set! js/document.documentElement.style.backgroundImage bg-style)))
+
 
 
 
@@ -54,6 +60,7 @@
         ^js canvas (.-view renderer)]
     (set! (.-id canvas) canvas-id)
     (.appendChild js/document.body canvas)
+    (add-bg-image!)
     (util/setup-canvas! canvas)
     (swap! a-state
            assoc
