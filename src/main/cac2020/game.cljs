@@ -4,7 +4,6 @@
             ["va5" :as va5]
             [cac2020.util :as util :include-macros true]
             [cac2020.space :as space]
-            [cac2020.effect :as effect]
             ))
 
 
@@ -70,11 +69,6 @@
 
 
 
-;;; - ベルトロール型砲台シューティングを検討
-;;;     - 自機は左下砲台。画面クリックでその方向に弾丸射出。画面内に敵が何匹か飛んでいる。殲滅したら画面が横スクロールして次のステージへ。
-;;;     - これ面白そうだけど、ステージと敵をたくさん用意するの無理では？
-;;;     - あとパワーアップを用意したいけど、どうやって提供する？
-
 
 
 ;;; BGMを選別して投入しましょう。ライセンス面とサイズ面より、自作から短い奴を選ぶしかない
@@ -139,6 +133,44 @@
 ;;;             - ちょっと荒いか？
 ;;;             - これでもいい気はするが…
 ;;;             - 一応 public/tex/ground.png としてコピーした。が、ちょっとボケすぎていると思う。別の写真から用意したい
+
+
+;;; - ベルトロール型砲台シューティングを検討
+;;;     - 自機は左下砲台。画面クリックでその方向に弾丸射出。画面内に敵が何匹か飛んでいる。殲滅したら画面が横スクロールして次のステージへ。
+;;;     - これ面白そうだけど、ステージと敵をたくさん用意するの無理では？
+;;;         - マグマックスの敵みたいな動きをさせればok
+;;;         - 敵はpsgでランダム生成
+;;;     - あとパワーアップを用意したいけど、どうやって提供する？
+;;;         - 最大射出数、N-way、ショットパワー、ショット速度、スコア倍率？
+;;;     - クリア条件の設定
+;;;         - ステージ3クリアで終了
+
+;;; - 縦スクロール？横スクロール？固定画面？
+;;; - 左右移動
+;;;     - dc-ui？トマトマ移動？
+;;;     - スクロールあり？なし？
+;;; - 剣が落ちてて、拾うと画面下部中央にボタン出現、これで剣を真上に射出できる。剣を拾うほど連射可
+;;;     - 剣ではなく弓矢とかブーメランとかトマホークの方がよい？
+;;;     - ジャンプブーツとかウイングにする？
+;;; - 空に巨大フルーツが浮いている、そこに武器を打ち込むと小さいフルーツをゲット、一定回数で巨大フルーツは消える
+;;;     - フルーツ収穫でどんないい事がある？
+;;;         - スコア加算
+;;;         - スコア倍率アップ
+;;;         - パワーアップ
+;;;     - 巨大フルーツの動きは？
+;;;         - 縦スクロール追随？
+;;;         - ネコゴのように横に流れる？
+;;; - クリア条件は？
+;;;     - 1分固定(それまでのスコアを稼ぐ)
+;;;     - 最上部にいる敵ボスを倒す(それまでのタイムを競う)
+;;;     - 画面内の敵を殲滅(それまでのタイムを競う)
+;;;     - ...
+;;;     - ...
+;;;     - ...
+
+
+
+
 
 
 
@@ -452,8 +484,8 @@
     (util/dea! root))
   (reset! a-state {}))
 
-(defn- tick! [app delta-msec]
-  (effect/tick! delta-msec)
+(defn- tick! [app delta-frames]
+  (util/tick-tween! delta-frames)
   (let [root (:root @a-state)
         ]
     (when-let [layer (util/get-child root :background-space-layer)]
@@ -461,11 +493,11 @@
       (let [
             {:keys [s-spd-x s-spd-y s-spd-z s-spd-yaw s-spd-pitch]} @a-state
             ;; この移動量はカメラ側のもの。風景側は逆方向に動く事になる
-            move-x (* delta-msec s-spd-x)
-            move-y (* delta-msec s-spd-y)
-            move-z (* delta-msec s-spd-z)
-            yaw (* delta-msec s-spd-yaw)
-            pitch (* delta-msec s-spd-pitch)
+            move-x (* delta-frames s-spd-x)
+            move-y (* delta-frames s-spd-y)
+            move-z (* delta-frames s-spd-z)
+            yaw (* delta-frames s-spd-yaw)
+            pitch (* delta-frames s-spd-pitch)
             ]
         (space/update! layer move-x move-y move-z yaw pitch)))
     ;; TODO

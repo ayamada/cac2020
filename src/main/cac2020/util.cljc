@@ -156,7 +156,6 @@
           (recur (nnext kv-list)))))
     o))
 
-(def -set-property! -set-properties!)
 
 (defn -property [^js o k]
   (if (or (keyword? k) (symbol? k))
@@ -231,6 +230,36 @@
 
 
 
+(def vibrate!
+  (if js/window.navigator.vibrate
+    (fn [msec]
+      (js/window.navigator.vibrate msec))
+    (fn [msec] nil)))
+
+
+(declare destroy-them-all!)
+(defn destroy-all-children! [^js dobj]
+  (when dobj
+    (doseq [child (.-children dobj)]
+      (destroy-them-all! child))
+    (.removeChildren dobj)))
+(defn destroy-them-all! [^js dobj]
+  (when (and dobj (not (aget dobj "_destroyed")))
+    (when-let [parent (.-parent dobj)]
+      (.removeChild parent dobj))
+    (destroy-all-children! dobj)
+    (.destroy dobj)))
+(def dac! destroy-all-children!)
+(def dta! destroy-them-all!)
+(def dea! destroy-them-all!)
+
+
+
+
+
+
+
+
 
 (defn sp16x16 []
   (pixi/Sprite.from pixi/Texture.WHITE))
@@ -251,7 +280,7 @@
                      (next tree-src)
                      tree-src)]
       (when c-name
-        (-set-property! c :name c-name))
+        (m/set-property! c :name c-name))
       (doseq [child children]
         (cond
           (nil? child) nil
@@ -273,93 +302,6 @@
 
 
 
-(defn make-label [label-string & args]
-  (let [options (merge {:font-family "'Courier New', 'Courier', serif"
-                        :fill 0xFFFFFF
-                        :align "center"
-                        :font-size 48
-                        :padding 8
-                        :stroke "rgba(0,0,0,0.5)"
-                        :stroke-thickness 8
-                        }
-                       (args->map args))
-        style (pixi/TextStyle. (map->js-obj options))
-        label (pixi/Text. label-string style)]
-    label))
-
-
-
-(defn make-button [label-string click-handle & args]
-  (let [options (merge {:anchor-x 0.5
-                        :anchor-y 0.5
-                        :border 2
-                        :padding 16
-                        :outline-color 0xFFFFFF
-                        :bg-color 0x7F7FFF
-                        }
-                       (args->map args))
-        {:keys [anchor-x anchor-y
-                border padding
-                outline-color bg-color
-                label-options]} options
-        label-options (merge {
-                              ;; TODO
-                              }
-                             (args->map label-options))
-        ^js c (pixi/Container.)
-        ^js label (make-label label-string label-options)
-        _ (.updateText label true)
-        label-w (.-width label)
-        label-h (.-height label)
-        inner-w (+ label-w padding padding)
-        inner-h (+ label-h padding padding)
-        outer-w (+ inner-w border border)
-        outer-h (+ inner-h border border)
-        ratio-x (- 0.5 anchor-x)
-        ratio-y (- 0.5 anchor-y)
-        bg-outer-x (* ratio-x outer-w)
-        bg-outer-y (* ratio-y outer-h)
-        bg-inner-x (* ratio-x inner-w)
-        bg-inner-y (* ratio-y inner-h)
-        label-x (* ratio-x label-w)
-        label-y (* ratio-y label-h)
-        ^js bg-inner (-set-properties! (sp16x16)
-                                      :tint bg-color
-                                      :width inner-w
-                                      :height inner-h
-                                      :anchor/x 0.5
-                                      :anchor/y 0.5
-                                      :x bg-inner-x
-                                      :y bg-inner-y)
-        ^js bg-outer (-set-properties! (sp16x16)
-                                      :tint outline-color
-                                      :width outer-w
-                                      :height outer-h
-                                      :anchor/x 0.5
-                                      :anchor/y 0.5
-                                      :x bg-outer-x
-                                      :y bg-outer-y
-                                      :interactive true
-                                      :button-mode true)
-        handle (fn [^js e]
-                 ;; TODO: エフェクトを出したい
-                 (when (.-preventDefault e)
-                   (.preventDefault e))
-                 (when click-handle
-                   (click-handle c)))
-        ]
-    (-set-properties! label
-                     :anchor/x 0.5
-                     :anchor/y 0.5
-                     :x label-x
-                     :y label-y
-                     )
-    (.on bg-outer "mousedown" handle)
-    (.on bg-outer "touchend" handle)
-    (.addChild c bg-outer)
-    (.addChild c bg-inner)
-    (.addChild c label)
-    c))
 
 
 (defn get-child [^js root k] (.getChildByName root (name k)))
@@ -491,28 +433,196 @@
     nil))
 
 
-(declare destroy-them-all!)
-(defn destroy-all-children! [^js dobj]
-  (when dobj
-    (doseq [child (.-children dobj)]
-      (destroy-them-all! child))
-    (.removeChildren dobj)))
-(defn destroy-them-all! [^js dobj]
-  (when (and dobj (not (aget dobj "_destroyed")))
-    (when-let [parent (.-parent dobj)]
-      (.removeChild parent dobj))
-    (destroy-all-children! dobj)
-    (.destroy dobj)))
-(def dac! destroy-all-children!)
-(def dta! destroy-them-all!)
-(def dea! destroy-them-all!)
 
 
-(def vibrate!
-  (if js/window.navigator.vibrate
-    (fn [msec]
-      (js/window.navigator.vibrate msec))
-    (fn [msec] nil)))
+
+
+
+
+
+;;; tweenは純粋に毎フレームでtarget-objを動かすだけ
+
+(defonce ^js all-tween-entries (array))
+
+(defn tick-tween! [delta-frames]
+  (let [total (alength all-tween-entries)]
+    (dotimes [i0 total]
+      (let [i (- total i0 1)
+            ^cljs entry (aget all-tween-entries i)
+            target-obj (.-target-obj entry)
+            now-frames (+ (.-now-frames entry) delta-frames)
+            ttl-frames (.-ttl-frames entry)
+            handle (.-handle entry)
+            progress (max 0 (min (/ now-frames ttl-frames) 1))]
+        (set! (.-now-frames entry) now-frames)
+        (handle target-obj progress)
+        (when (= 1 progress)
+          (.splice all-tween-entries i 1))))
+    nil))
+
+(defn register-tween! [target-obj ttl-frames handle]
+  (let [^cljs entry (js-obj)]
+    (set! (.-target-obj entry) target-obj)
+    (set! (.-now-frames entry) 0)
+    (set! (.-ttl-frames entry) ttl-frames)
+    (set! (.-handle entry) handle)
+    (.push all-tween-entries entry)
+    (handle target-obj 0)
+    nil))
+
+
+
+
+
+
+
+
+
+;;; effectは開始時にparentにaddChildし、完了後にdea!する機能のついたtween
+
+(defn register-effect! [^js parent ^js dobj ttl-frames handle]
+  (when parent
+    (.addChild parent dobj))
+  (let[h (fn [target-obj progress]
+           (handle target-obj progress)
+           (when (= 1 progress)
+             (dea! target-obj)))]
+    (register-tween! dobj ttl-frames h)))
+
+
+
+
+
+;;; 何個かプリセットを用意
+
+;;; TODO
+
+
+
+
+(defn make-label [label-string & args]
+  (let [options (merge {:font-family "'Courier New', 'Courier', serif"
+                        :fill 0xFFFFFF
+                        :align "center"
+                        :font-size 48
+                        :padding 8
+                        :stroke "rgba(0,0,0,0.5)"
+                        :stroke-thickness 8
+                        }
+                       (args->map args))
+        style (pixi/TextStyle. (map->js-obj options))
+        label (pixi/Text. label-string style)]
+    label))
+
+
+
+(defonce a-need-button-effect? (atom false))
+(defn cancel-button-effect! []
+  (reset! a-need-button-effect? false))
+
+(defn- button-effect-handle [^js sp progress]
+  (let [start-w (m/property sp :-start-w)
+        start-h (m/property sp :-start-h)
+        delta-w (m/property sp :-delta-w)
+        delta-h (m/property sp :-delta-h)]
+    (m/set-properties! sp
+                       :width (+ start-w (* delta-w progress))
+                       :height (+ start-h (* delta-h progress))
+                       :alpha (- 1 progress))
+    nil))
+
+(defn make-button [label-string click-handle & args]
+  (let [options (merge {:anchor-x 0.5
+                        :anchor-y 0.5
+                        :border 2
+                        :padding 16
+                        :outline-color 0xFFFFFF
+                        :bg-color 0x7F7FFF
+                        }
+                       (args->map args))
+        {:keys [anchor-x anchor-y
+                border padding
+                outline-color bg-color
+                label-options]} options
+        label-options (merge {
+                              ;; TODO
+                              }
+                             (args->map label-options))
+        ^js c (pixi/Container.)
+        ^js label (make-label label-string label-options)
+        _ (.updateText label true)
+        label-w (.-width label)
+        label-h (.-height label)
+        inner-w (+ label-w padding padding)
+        inner-h (+ label-h padding padding)
+        outer-w (+ inner-w border border)
+        outer-h (+ inner-h border border)
+        ratio-x (- 0.5 anchor-x)
+        ratio-y (- 0.5 anchor-y)
+        bg-outer-x (* ratio-x outer-w)
+        bg-outer-y (* ratio-y outer-h)
+        bg-inner-x (* ratio-x inner-w)
+        bg-inner-y (* ratio-y inner-h)
+        label-x (* ratio-x label-w)
+        label-y (* ratio-y label-h)
+        ^js bg-inner (m/set-properties! (sp16x16)
+                                        :tint bg-color
+                                        :width inner-w
+                                        :height inner-h
+                                        :anchor/x 0.5
+                                        :anchor/y 0.5
+                                        :x bg-inner-x
+                                        :y bg-inner-y)
+        ^js bg-outer (m/set-properties! (sp16x16)
+                                        :tint outline-color
+                                        :width outer-w
+                                        :height outer-h
+                                        :anchor/x 0.5
+                                        :anchor/y 0.5
+                                        :x bg-outer-x
+                                        :y bg-outer-y
+                                        :interactive true
+                                        :button-mode true)
+        handle (fn [^js e]
+                 (when (.-preventDefault e)
+                   (.preventDefault e))
+                 (reset! a-need-button-effect? true)
+                 (when click-handle
+                   (click-handle c))
+                 (when @a-need-button-effect?
+                   (let [sp (sp16x16)
+                         start-w outer-w
+                         start-h outer-h
+                         rate 1.5
+                         end-w (* start-w rate)
+                         end-h (* start-h rate)
+                         delta-w (- end-w start-w)
+                         delta-h (- end-h start-h)
+                         ]
+                     (m/set-properties! sp
+                                        :anchor/x 0.5
+                                        :anchor/y 0.5
+                                        :x bg-outer-x
+                                        :y bg-outer-y
+                                        :-start-w start-w
+                                        :-start-h start-h
+                                        :-delta-w delta-w
+                                        :-delta-h delta-h
+                                        )
+                     (register-effect! c sp 30 button-effect-handle))))
+        ]
+    (m/set-properties! label
+                       :anchor/x 0.5
+                       :anchor/y 0.5
+                       :x label-x
+                       :y label-y
+                       )
+    (.on bg-outer "mousedown" handle)
+    (.on bg-outer "touchend" handle)
+    (.addChild c bg-outer)
+    (.addChild c bg-inner)
+    (.addChild c label)
+    c))
 
 
 

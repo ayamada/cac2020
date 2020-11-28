@@ -35,9 +35,9 @@
   (swap! a-state dissoc :game-lifecycle)
   nil)
 
-(defn- tick! [delta-msec]
+(defn- tick! [delta-frames]
   (when-let [tick-fn (:tick (:game-lifecycle @a-state))]
-    (tick-fn @a-state delta-msec)))
+    (tick-fn @a-state delta-frames)))
 
 
 
