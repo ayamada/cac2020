@@ -1,6 +1,6 @@
 {
   "name": "cac2020",
-  "version": "0.20201125.0-ADVANCED",
+  "version": "0.20201126.0-ADVANCED",
   "private": true,
   "scripts": {
     "clean": "shadow-cljs stop && rimraf .shadow-cljs .cpcache target src/gen public/cljs dist",
@@ -12,7 +12,7 @@
     "archiver": "^5.0.2",
     "mkdirp": "^1.0.4",
     "rimraf": "^3.0.2",
-    "shadow-cljs": "2.11.7"
+    "shadow-cljs": "^2.11.8"
   },
   "dependencies": {
     "pixi.js": "^5.3.3",

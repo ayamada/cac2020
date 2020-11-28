@@ -491,4 +491,32 @@
     nil))
 
 
+(declare destroy-them-all!)
+(defn destroy-all-children! [^js dobj]
+  (when dobj
+    (doseq [child (.-children dobj)]
+      (destroy-them-all! child))
+    (.removeChildren dobj)))
+(defn destroy-them-all! [^js dobj]
+  (when (and dobj (not (aget dobj "_destroyed")))
+    (when-let [parent (.-parent dobj)]
+      (.removeChild parent dobj))
+    (destroy-all-children! dobj)
+    (.destroy dobj)))
+(def dac! destroy-all-children!)
+(def dta! destroy-them-all!)
+(def dea! destroy-them-all!)
+
+
+(def vibrate!
+  (if js/window.navigator.vibrate
+    (fn [msec]
+      (js/window.navigator.vibrate msec))
+    (fn [msec] nil)))
+
+
+
+
+
+
            ))
