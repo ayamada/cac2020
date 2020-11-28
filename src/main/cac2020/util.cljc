@@ -321,7 +321,8 @@
 
 (defn load-audio! [& ks]
   (doseq [k ks]
-    (va5/load (resolve-audio-path k))))
+    (when k
+      (va5/load (resolve-audio-path k)))))
 
 (defn bgm! [k & args]
   (if-not k
@@ -624,6 +625,42 @@
     (.addChild c label)
     c))
 
+
+
+
+(def texture-dir "tex")
+(defn resolve-texture-path [k]
+  (if-not (or (keyword? k) (symbol? k))
+    k
+    (let [nsk (namespace k)
+          nk (name k)]
+      (if nsk
+        (str texture-dir "/" nsk "/" nk ".png")
+        (str texture-dir "/" nk ".png")))))
+
+(defn ->tex [k] (pixi/Texture.from (resolve-texture-path k)))
+(defn ->sp [k] (pixi/Sprite.from (resolve-texture-path k)))
+
+(defn load-textures! [cont & ks]
+  (if (empty? ks)
+    (cont)
+    (let [^js loader (pixi/Loader.)
+          paths (map resolve-texture-path ks)]
+      (doseq [path paths]
+        (.add loader path path))
+      (.load loader
+             (fn [^js loader ^js resources]
+               ;; TODO: resourcesからエラーチェックする事！エラーが入ってると、いつまでたっても完了しなくなる…
+               (let [ts (doall (map #(pixi/Texture.from %) paths))
+                     a-done? (atom nil)]
+                 (reset! a-done?
+                         (fn []
+                           (if (every? #(.-valid ^js %) ts)
+                             (do
+                               (reset! a-done? nil)
+                               (cont))
+                             (js/window.setTimeout @a-done?))))
+                 (@a-done?)))))))
 
 
 

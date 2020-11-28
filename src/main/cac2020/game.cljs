@@ -4,6 +4,7 @@
             ["va5" :as va5]
             [cac2020.util :as util :include-macros true]
             [cac2020.space :as space]
+            [cac2020.dataurl :as dataurl]
             ))
 
 
@@ -170,50 +171,10 @@
 
 
 
+;;; プリロード待ちを実装すべきでは？テクスチャのロードは待ちたい…
 
 
 
-
-;;; 煙/雲。32x32。
-(def dataurl-smoke32x32
-  (util/str* "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf"
-             "8/9hAAABNUlEQVQ4jYWToY6DUBBFGxIEAoHBYBAkiCpkTSUGi8GgVmFwqDW4ui"
-             "pcDZ9Qi62v3B9Yvd9w1tyhb5vSJbnhpZ17eufNdLd78wA+EAAe4L+rNYMHBDoH"
-             "QAEc9E43ITJmQALk0h7opFKgvWqCZ0AB1MAHUMnQAj3wKfX6vlSa0Mwx0KhgkE"
-             "bpBJyBSZBBP1Cs7QChAFZ8BmbgKl2ARZBRLTVqxbcEpRN1kuEOfAHfOhtsVF0F"
-             "xJYi0x2MSnCV+UcyyEVJOwFSA6S6IOt/3gBMzkXnQGLLcnAAvVLcBDHdBKhV7w"
-             "OeJUickQ2Kuci0SLPStcBxHaOzdZUz+5MMszMZMxsgft7ERONp1E7P30XqeKx2"
-             "zottjDSNTIWtk6rmsUDp2vuL/0SodiIlOuqzWOBt8wYw+q/mF2XSlkfEIbhWAA"
-             "AAAElFTkSuQmCC"))
-
-;;; さくらんぼ。16x16
-(def dataurl-cherry16x16
-  (util/str* "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf"
-             "8/9hAAAAZElEQVQ4jWNgoCL4j4ZJ07y9URsFk2oQhkZyDIJrRPYKmkHEuwZJA3"
-             "rYEDQIwxWvjZRRMCFDULyCrpmQIVgVEmsAXttg7P///5NvAEwz0QYg20ay/7HY"
-             "RlQ0khxlWA0h1jaqAACvLONemBcg4QAAAABJRU5ErkJggg=="))
-
-;;; 葉。16x16
-(def dataurl-a
-  (util/str* "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAgMAAABi"
-             "nRfyAAAADFBMVEVHcExRkBMAYhhtqRE0DJ/fAAAAAXRSTlMAQObYZgAAAEBJRE"
-             "FUCNdjYEAA9qgJDAyxyxkYmG/VAHnpJQwM/NMDGBh4tzswMMiVAlWYAYUYJIFC"
-             "DNJAIQZOkC42EMEEMwMAlKIIPdyq1roAAAAASUVORK5CYII="))
-
-;;; プリン。16x16
-(def dataurl-pudding16x16
-  (util/str* "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAgMAAABi"
-             "nRfyAAAADFBMVEVHcEz/2QCiIgD4mQCvKmLyAAAAAXRSTlMAQObYZgAAADpJRE"
-             "FUCNdjYEAArgUMDEyrVjUwMGatdGBgDA11YGANDQ1AIkRDQ0OQCNPQ0BgG/tDQ"
-             "DwwM//9DzAAAJ4wP2HtEC58AAAAASUVORK5CYII="))
-
-;;; p8金髪緑服。11x15。
-(def dataurl-p8-elf
-  (util/str* "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAsAAAAPCAYAAAAy"
-             "PTUwAAAAe0lEQVQoka2QwQmAMAxFM1fFHXoxOIKDdBBPnoRO0hkcoEcvuZTvSb"
-             "GYBkEDj1zeD0mIPhQUdLHk8YEWUMVWACWP2JeuwpT9KpAUISnCr2LLp3hiyi7w"
-             "tYILbB85bUOFC6yLkiJc4ApJsfnrV1Oba1gyERFm7nHvv8lmHV7o1UPbOatgAA"
-             "AAAElFTkSuQmCC"))
 
 
 
@@ -227,18 +188,21 @@
 (def a-state (atom {}))
 
 
-(defn- preload! []
-  ;; TODO: きちんとロード完了を監視すべき
-  (util/load-audio! :se/caret-psg
+(defn- preload-audio! []
+  (util/load-audio! nil
+                    :bgm/bsbs__LE661501
+                    :se/caret-psg
                     :se/submit-psg
                     :se/lvup-midi
                     :se/yarare-psg
-                    :bgm/bsbs__LE661501
                     ;; TODO
-                    )
+                    ))
 
-  ;; TODO
-  )
+(defn- preload! [app cont]
+  (util/load-textures! cont
+                       :ground
+                       ;; TODO
+                       ))
 
 
 
@@ -328,7 +292,7 @@
                          :x (* s-w 0.5)
                          :y (* s-h 0.25)
                          :name (name :title-caption))
-   (util/set-properties! (pixi/Sprite.from dataurl-p8-elf)
+   (util/set-properties! (pixi/Sprite.from dataurl/p8elf)
                          :anchor/x 0.5
                          :anchor/y 0.5
                          :scale/x 8
@@ -402,6 +366,65 @@
      ]))
 
 
+
+
+
+(defn- set-scroll-pos! [^js sp x y]
+  (let [^js tex (.-texture sp)
+        ^js frame (.-frame tex)]
+    (set! (.-x frame) x)
+    (set! (.-y frame) y)
+    (.updateUvs tex)
+    nil))
+
+(defn- scroll-ground! [^js sp delta-x delta-y]
+  (let [^js tex (.-texture sp)
+        ^js frame (.-frame tex)
+        orig-w (util/property tex :orig/width)
+        orig-h (util/property tex :orig/height)
+        x (mod (+ delta-x (.-x frame))
+               (* 2 orig-w))
+        y (mod (+ delta-y (.-y frame))
+               (* 2 orig-h))
+        ]
+    (set-scroll-pos! sp x y)))
+
+(defn- scroll-all-ground! [^js layer delta-x delta-y]
+  (let [^js children (.-children layer)]
+    (dotimes [i (alength children)]
+      (let [child (aget children i)]
+        (scroll-ground! child delta-x delta-y)))))
+
+(defn- make-ground [k s-w s-h adjust-h scale tint]
+  (let [^js tex (.clone (util/->tex :ground))
+        ^js base-tex (.-baseTexture tex)
+        orig-w 1024
+        orig-h 184
+        wrap-mode pixi/WRAP_MODES.MIRRORED_REPEAT
+        _ (util/set-property! base-tex :wrap-mode wrap-mode)
+        _ (util/set-properties! tex
+                                :orig/width (/ orig-w scale)
+                                :orig/height (/ orig-h scale)
+                                )
+        x (/ s-w 2)
+        y (- s-h 184 adjust-h)
+        w orig-w
+        h orig-h
+        ;h (* orig-h scale)
+        sp (util/->sp tex)]
+    (.updateUvs tex)
+    (util/set-properties! sp
+                          :anchor/x 0.5
+                          :anchor/y 0
+                          :x x
+                          :y y
+                          :width w
+                          :height h
+                          :tint tint
+                          :name (name k)
+                          )
+    sp))
+
 (defn- make-tree [s-w s-h]
   [:root
    (util/set-properties! (util/sp16x16)
@@ -438,6 +461,12 @@
                            :name (name :background-space-layer)))
    [:back-layer
     ]
+   [:ground-layer
+    ;(make-ground :far s-w s-h (+ -16 64 32 16) 0.125 0x3F3F3F)
+    (make-ground :far s-w s-h (+ -16 64 32) 0.25 0x7F7F7F)
+    (make-ground :mid s-w s-h (+ -16 64) 0.5 0xBFBFBF)
+    (make-ground :near s-w s-h (+ -16) 1 0xFFFFFF)
+    ]
    [:main-layer]
    [:front-layer]
    (make-gameover-layer s-w s-h)
@@ -462,9 +491,8 @@
         s-h (.-height renderer)
         ^js stage (util/build-container-tree (make-tree s-w s-h))
         ]
-    (preload!) ; TODO: これはlifecycle側に組み込むべき
+    (preload-audio!)
     (util/bgm! nil)
-    ;; TODO
     (swap! a-state
            assoc
            :mode :title
@@ -472,6 +500,7 @@
            :score 0
            )
     stage))
+
 
 (defn- destroy! [app]
   ;(prn 'destroy!)
@@ -483,6 +512,7 @@
       (space/destroy! layer))
     (util/dea! root))
   (reset! a-state {}))
+
 
 (defn- tick! [app delta-frames]
   (util/tick-tween! delta-frames)
@@ -500,13 +530,18 @@
             pitch (* delta-frames s-spd-pitch)
             ]
         (space/update! layer move-x move-y move-z yaw pitch)))
+    (when-let [layer (util/get-child root :ground-layer)]
+      (scroll-all-ground! layer
+                          (* delta-frames 8)
+                          0))
     ;; TODO
     ))
 
 
 
 (def lifecycle
-  {:create create!
+  {:preload preload!
+   :create create!
    :tick tick!
    :destroy destroy!})
 

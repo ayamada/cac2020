@@ -2,6 +2,7 @@
   (:refer-clojure :exclude [update!])
   (:require ["pixi.js" :as pixi]
             [cac2020.util :as util :include-macros true]
+            [cac2020.dataurl :as dataurl]
             ))
 
 ;;; 星空表示用
@@ -9,14 +10,6 @@
 
 
 
-;;; distance field処理済の、中塗りされた円。16x16。
-(def dataurl-sphere16x16
-  (util/str* "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf"
-             "8/9hAAAAvklEQVQ4ja3TMQrCQBCFYSHgCWxTew+xSGmTJhfwKlYinsQqR7DwJl"
-             "apU30WjhBjXKNxYGBZ9v07b3Z2NksEMmSpM0OiOZYoUEUWsTf/JF6gxB41LpE1"
-             "jgHLU+ItTmi8RhOg7QskvG5C3A6IH9EGpHqygxw7XBPibiUHLLuAddw+NmoU3f"
-             "JLnL8AXMJGNh0QVaz8auFfTZz2jAODNFTJ+0HqQTZh5+Te2HOs91Kj3LOTuze2"
-             "jFwb85newJLf+Qalm5IlQyJAsAAAAABJRU5ErkJggg=="))
 
 
 
@@ -244,7 +237,7 @@
               camera-x 0
               camera-y 0
               camera-z 0
-              star-textures [dataurl-sphere16x16]
+              star-textures [dataurl/sphere16x16]
               colorful-ratio 0.5}} opts
         {:keys [left right top bottom
                 nearest near far farthest
