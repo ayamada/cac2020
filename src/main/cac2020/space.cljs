@@ -237,7 +237,7 @@
               camera-x 0
               camera-y 0
               camera-z 0
-              star-textures [dataurl/sphere16x16]
+              star-textures [dataurl/sphere]
               colorful-ratio 0.5}} opts
         {:keys [left right top bottom
                 nearest near far farthest

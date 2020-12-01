@@ -1,17 +1,18 @@
 これは [Clojure Advent Calendar 2020](https://qiita.com/advent-calendar/2020/clojure) 12日目の記事です。
 
 
-# shadow-cljsあれこれ
+# shadow-cljsでゲームつくってみた
 
-TODO: もっとよい記事タイトルを考えましょう
+(TODO: つくったゲームのurlをまずここに書く)
 
 
 ## shadow-cljsについて
 
 - https://github.com/thheller/shadow-cljs
-    - cljsをビルドするやつ
+    - cljsのコードをdev実行したりホットリロードしたりprod出力したりできるやつ
     - ビルドツールとしてnpmを使い、leinやclojureコマンドなしで動く
-        - `project.clj` や `deps.edn` の代わりに、npm用の `package.json` と専用設定の `shadow-cljs.edn` を書く
+        - `project.clj` や `deps.edn` の代わりに、npm用の `package.json` とcljs設定用の `shadow-cljs.edn` を書く
+            - `project.clj` や `deps.edn` から、 `package.json` や `shadow-cljs.edn` を生成する奴も別に用意されてます
     - もっと詳しい情報は @iku000888 さんの去年のclojure-advent-calendarの記事 https://qiita.com/iku000888/items/5c12c999c0d49cc2c4b0 があります
     - あるいは公式マニュアルを順番に見ていくなど https://shadow-cljs.github.io/docs/UsersGuide.html
 
@@ -21,13 +22,12 @@ TODO: もっとよい記事タイトルを考えましょう
 - 公式には明記していないようだけれど、「jvmからの脱却」の意志を強く感じた。フロントエンドをcljsで書くのはもちろん、サーバサイドもnode向けcljsで書き、jvm依存なマクロをなるべく書かずにすむ機能を提供し、セルフホスティングcljsを見据えた設計方針、いずれも「jvmからの脱却」を指向している、と自分は感じた
 
 
-### shadow-cljs雑感
+## shadow-cljs雑感
 
-どのへんがいいの？
+### どのへんがいいの？
 
 - ↑の記事や公式ドキュメントを参照、いいところたくさんある。個人的には以下が重点
 - jvmからの脱却を見据えた構成である事
-    - 今はまだjavaが必要だが、そのうちjavaなしで動かせるようになると思う
 - 豊富なnpmライブラリをまあまあ楽に利用できる
     - extern定義も比較的楽にできる
 - node(とjava)さえ入ってればたとえwindows環境でも開発できる
@@ -35,43 +35,45 @@ TODO: もっとよい記事タイトルを考えましょう
         - shっぽい挙動については大体npmがやってくれる。 `"node -e '...' && shadow-cljs release app"` とか書ける。ただしposixコマンドは使えないので、スクリプトエンジンとしてのnodeをフル活用する事になる
 
 
-よくないところはある？
+### よくないところはある？
 
 - まだまだ活発に開発継続してるので、たまに互換性のなくなるアップデートがあるかもしれない
 - かなりcljs側にカスタマイズが入っていて、shadow-cljs専用の便利機能が色々ある反面、それに依存したcljsを書くとshadow-cljsから抜け出しづらくなってしまう
     - clojarsとかに置くcljsライブラリ開発に利用する場合は注意が必要かもしれない
     - 一部機能はcljs本家にパッチを送ったりしてるようだが、あんま取り込まれてないっぽい様子
-- 微妙にマクロが使いづらい
+- 微妙にマクロの使いづらいケースがある
     - shadow-cljsはコンパイル結果や中間状態を積極的にキャッシュするので、「ソースコード以外の情報をマクロで読み込んでコンパイル内容を左右する」系のは干渉しやすい。公式ドキュメントにも「避けた方がよい」と書かれている
-        - マクロを書かずにそういう事をできるようにする機能がshadow-cljsにも組み込まれている(が、マクロ書く方がlisper的には楽ではある)
-    - そもそもマクロはcljsでないcljで書くのが標準の為、どうしてもjvm依存となり、shadow-cljsの思想的に合わない
+        - マクロを書かずにそういう事をできるようにする機能がshadow-cljsにも組み込まれている(が、マクロ書く方がlisper的に楽ではある)
+    - マクロ展開結果が関数式やスペシャルフォームの組み合わせになる、普通のマクロの使い方なら問題になる事は特にない
+    - そもそもマクロはcljsでないcljで書くのが現状なので、どうしてもjvm依存となりがちで、shadow-cljsの思想的に合わない感がある
 - `shadow-cljs.edn` 内の `:builds` や `:modules` あたりの設計がいまいちこなれていないように感じる。すぐ読みにくくなってしまう
     - とは言えlein-cljsbuildとかと比べるとマシになっているのではと思う
+    - `npx shadow-cljs` の引数に `--config-merge '{EDN式}'` をつける事でビルド設定を一時的にmergeできる(merge実装はlein等と同様の[deep-merge](https://github.com/thheller/shadow-cljs/blob/023d9a2a8dbf008d1a26dc221468daade2746872/src/main/shadow/build/api.clj#L26))。 `shadow-cljs.edn` で細かくbuild-idやmoduleを分けるよりも、これをつけたコマンド列を `package.json` 内の `"scripts"` に定義した方がよいかもしれない
 - `lein clean` に相当する操作がデフォルトで提供されていない(ので自分で用意する必要がある)
     - たまに `.shadow-cljs/` の内部状態がこわれて正常なコンパイルが行えなくなる時がある？ので `lein clean` 的な奴はほしい
     - これもnpmの流儀で解決できる。 `npm i rimraf --save-dev` して `rm -rf` 相当を実行してくれるコマンドをインストールし、 package.json に `"scripts": {"clean": "shadow-cljs stop && rimraf .shadow-cljs public/cljs (他に消したいファイルがあればここに列挙)"}` みたいな感じで書く。これで `npm run clean` できるようになる
         - `shadow-cljs stop` しているのは、 `.shadow-cljs/` 等を消す際に、他でwatchしているshadow-cljsプロセスが生きているとよくないので。prod版をビルドするコマンドでも同様にこれを実行するようにしておくといい
-- 個人的にはwebpackの設計が好きじゃない。google closure compilerとの相性があんまりよくない気がする(厳密に調査した訳じゃないので、実際は問題ないのかもしれないが…)
+- 個人的にはwebpackの設計が好きじゃない
 
 
-総合的には？
+### 総合的には？
 
-- 総合的には非常に使えるレベルで、lein-cljsbuildやfigwheel-mainから乗り換える価値は十分にある。project.cljやdeps.edn連携も一応ある(自分は使った事ないのでどのくらいちゃんと動くかは不明)
-- 「jvmからの脱却」を検討してしまうような人にオススメ
-- ハードルは「ビルドツールがnpm」というところ。package.jsonのメンテをしなくてはならない
-    - [lein-shadow](https://clojars.org/lein-shadow) とかを使えば避けられる？(よく知らない)
-- 欲を言うなら、WebAssemblyで動くclojureがほしいところだけど…
+- 総合的には非常に使えるレベルで、lein-cljsbuildやfigwheel-mainから乗り換える価値は十分にある
+- 「jvmからの脱却」を検討してしまうような人に特にオススメ
+- 一番大きいハードルは「ビルドツールがnpm」というところ
+    - [lein-shadow](https://gitlab.com/nikperic/lein-shadow)みたいなのは一応あるけど、自動生成されるpackage.jsonやshadow-cljs.ednの内容についての知識がある前提の気はする
+- 欲を言うなら、WebAssemblyで動くclojure実装がほしい気はする
 
 
 ## 実際につかってみよう
 
-プロジェクトディレクトリの生成
+### プロジェクトディレクトリの生成
 
 - `npx create-cljs-project my-game-name`
 - `cd my-game-name`
 
 
-開発の前準備をしよう
+### 開発の前準備をしよう
 
 - `vim package.json`
 - `vim shadow-cljs.edn`
@@ -84,67 +86,97 @@ TODO: もっとよい記事タイトルを考えましょう
 - あとはひたすらインクリメンタル開発サイクルを回していく
 
 
-開発しよう(開発した。具体的なコードはリポジトリの実ファイルを参照)
+### ゲーム開発しよう
+
+(開発した。具体的なコードはリポジトリの実ファイルを参照。ゲーム部分はかなり雑です、すいません)
 
 - jsライブラリを叩こう(pixi.js)
     - 生domも仮想domもめんどすぎる！だからcanvasにひきこもろう
-    - TODO: 詳細を書きましょう
+    - 筆者は [pixi.js](https://github.com/pixijs/pixi.js) を選ぶけど、好きなnpm配布のcanvas描画ライブラリを選べばok
+    - `npm i pixi.js --save`
+        - すいません、これ例があまりよくなくて、ここに含まれてる `.js` は拡張子でも何でもなくて、単なるnpmパッケージ名の一部です。以降で「pixi.js」という文字列が出てきた時もそう解釈してください
+    - あとは各cljs内のnsでrequireするだけ
+        - 基本的にはnpmインストールしたjsモジュールのパッケージ名を文字列指定でrequireすればok
+            - このpixiでの例だと、cljs側のコードは `(ns foo.bar (:require ["pixi.js" :as pixi]))` みたいになる。これで `(pixi/Container.)` でpixiのContainerインスタンスを生成できる
+        - …なのだけど、requireしたいnpmパッケージ側のexports定義の形によってオプション指定に `:as` を使うべきか `:refer` を使うべきか `:default` を使うべきかが違ってくる。詳細は https://shadow-cljs.github.io/docs/UsersGuide.html#_using_npm_packages を参照。よく分からなかったら順番に試していく(そんなにパターンが多い訳でもないので)
 - ホットリロードしよう
-    - 適切に `^:dev/before-load` `^:dev/after-load` を仕込む事で、ソースコード側の変更を即座にブラウザ側へと反映できる
+    - ソースコード更新したら全自動で、開きっぱなしのブラウザページに再度流し込まれる
+        - この辺はlein-cljsbuildやfigwheel-main等と同じ。必要に応じて `defonce` とか使ったりするのを検討しよう
+    - 適切に `^:dev/before-load` `^:dev/after-load` を設定した関数を仕込む事で、ホットリロード実行直前/直後に実行したいフックを設定できる。async版もある
 - package.json内に書いたパッケージ名とバージョン番号をcljsから読もう
-    - 「ゲームやアプリ内に自身のバージョン名を表示したい」という、よくある奴対応
-    - まずコード内に `(goog-define VERSION "(fallback)")` とか書いておく。これは `def` と同じ挙動をするようなので、これで `VERSION` が参照できるようになった
+    - 要は「ゲームやアプリ内に自身のバージョン名を表示したい」という、よくある奴対応
+    - まずcljs内に `(goog-define VERSION "(fallback)")` とか書いておく。これは `def` と同じ挙動をするようなので、これで `VERSION` が参照できるようになった
     - 次に `shadow-cljs.edn` に `:closure-defines {cac2020.util/VERSION #shadow/env ["npm_package_version"]}` みたいな定義を追加する。これで環境変数 `npm_package_version` が `VERSION` の値として反映されるようになった
         - この環境変数はnpmが提供している。このプロジェクトのpackage.jsonのscriptsに `"env": "env"` を入れてあるので、 `npm run env|sort` して、どういう環境変数が設定されているのか見てみよう
         - もちろん自分で好きな環境変数を設定して渡してもok。npmでは `.env` というファイルで環境変数を渡せるようだ(詳細未確認)
 - externしよう
-    - shadow-cljsでは `:infer-externs :auto` すると、リリース版ビルド時にexternしていないjsのmethod/property参照は警告を出してくれるらしい。externするのはmethod/property元のオブジェクトに `^js` のtype hintをつけるだけ。かんたん！
-    - これまで通り、別ファイルでextern定義を用意してもok
+    - `shadow-cljs.edn` で `:infer-externs :auto` しておくと、externしていないjsのmethod/property参照は警告を出してくれる。そしてexternするのはmethod/property元のオブジェクトに `^js` のtype hintをつけるだけ。かんたん！
+        - これで「prod版ビルドしたら `:optimizations :advanced` のname manglingで動かなくなったんだけど」という悩みから解放される
+        - 滅多にないけど、敢えて「ここのコードは `(set! (.-foo bar) 123)`  みたいにしているけど、このbarはcljsで生成した `(js-obj)` なのでfooのところはname manglingしてもokというかむしろしてほしい」みたいなケースもある。この時は、ここのbarに `^cljs` のtype hintをつけると警告の抑制だけしてくれる(externはしない)
+    - これまでのcljsと同じように、別ファイルでextern定義を用意してもok。でもtype hintつける方がclojure流儀に合ってるし楽
 
 
-リリースしよう
+### リリースしよう
 
-- ゲームのversioningルールについて
+- ゲームのversioningルールについての個人的見解
     - http://rnkv.hatenadiary.jp/entry/2020/11/15/192228
 - リリース版で開発向けコードの除去をする
-    - `(when ^boolean js/goog.DEBUG ...)` とすれば、コンパイラが勝手にこのブロックを除去してくれるとの事。 `^boolean` のtype hintがないと `if (cljs.core._truth(goog.DEBUG)){...}` というjsに展開されてしまいコード除去されなくなるとの事
+    - `(when ^boolean js/goog.DEBUG ...)` としておけば、closure compilerが勝手にこのブロックを除去してくれる、との事。なお `^boolean` のtype hintをつけないと `if (cljs.core._truth(goog.DEBUG)){...}` というjsに展開されてしまいコード除去されなくなるらしい…
 - リリースビルドのやりかた
     - lein clean相当のやりかた
-        - `npm i rimraf --save-dev` して package.json の "scripts" 内に `"clean": "rimraf .shadow-cljs ..."` って書く。そして `npm run clean` を実行
+        - 先に書いたけど、標準では提供されてない！
+        - `npm i rimraf --save-dev` して package.json の "scripts" 内に `"clean": "rimraf .shadow-cljs ..."` みたいに書く。そして `npm run clean` を実行
     - リリースビルドしよう
         - `npx shadow-cljs release app`
 - リリース版zipを生成しよう
-    - node で rm, mkdir しよう
+    - node で rm とか mkdir できるようにしよう
         - `npm i rimraf --save-dev`
         - `npm i mkdirp --save-dev`
     - zipに固めよう
         - `npm i archiver --save-dev`
-        - 結構nodeスクリプトを書く必要がある…詳細は [scripts/pack-zip.js](scripts/pack-zip.js) を参照
+        - ここは結構nodeスクリプトを書く必要がある。詳細は [scripts/pack-zip.js](scripts/pack-zip.js) を参照
             - 理論上は、こういう雑用スクリプトもcljsで書いてコンパイルできる筈だけど…
 - できたzipをアツマールとかitch.ioとかにアップロードしよう
-    - それぞれのサイトの説明を読もう！！！！！
-    - TODO: アップロードしたurlを掲載
+    - それぞれのサイトの説明を読んで！！！！！
+        - アツマール : https://qa.nicovideo.jp/faq/show/6673
+        - itch.io : https://itch.io/docs/creators/html5 (英語)
+    - 大雑把には「html5ゲームはzipに固めてダッシュボードからアップロード」という形
+    - あと大体「ゲーム起動およびリサイズイベントによって、ゲーム画面(canvas要素)を自動的にブラウザウィンドウ内全画面化する」必要がある。そういうコードを組み込んでおく事
+    - (optional)それぞれのサイト固有の機能を叩こう！
+        - アツマール : https://atsumaru.github.io/api-references/apis
+        - itch.io : (未調査)
+    - アップロードして最終動作確認を取り、ダッシュボードから「公開」状態にしよう
+        - TODO: アップロードしたurlをここに書く
 
-今後の課題
+
+### 今後の課題
 
 - electronでデスクトップアプリ化しよう → これは簡単
-- サーバサイドもcljsのnode向け出力で書こう → jvm資産の代わりにnpm資産を使う必要あり、しんどい
+- サーバサイドもcljsのnode向け出力で書こう → jvm資産の代わりにnpm資産を使う必要あり。既存のclj資産もほとんど使えず、しんどい
 - cordova系の何かでスマホアプリ化しよう → 未知の領域
-
 
 
 ## よくある問題
 
-- なんかよくわからないけどエラーが出るようになった！
-    - 多分 `.shadow-cljs/` がこわれてます。一回消してビルドし直してみましょう。このリポジトリでは `npm run clean` で消せます
+- 開発を回している内に、なんかよくわからないけどエラーが出るようになった！
+    - 多分 `.shadow-cljs/` がこわれてます。一回watchを停止し `.shadow-cljs/` を消してビルドし直してみましょう。このリポジトリでは `npm run clean` で消せます
 
 - 自作spaアプリを自サイトに公開した！そしていろいろいじって更新した！そしたらなんか更新前のデータやファイルがブラウザにキャッシュされてる！
     - spaアプリ自体を設置するpathにリリース数値の層(ディレクトリ)を入れて、アップデート毎に別urlになるようにするのが無難です
     - shadow-cljsでは `:release-version "v1"` をつけておくと、生成されるjsファイルの名前が `cljs/main.v1.js` みたいになる。しかしこれをする場合は当然htmlの方にもjsファイル名変更指定が必要になるので面倒
-    - そもそも大体これが問題になるのはどちらかというとjsファイルではなく、xhrでjsonとか画像とかロードする時。なのでxhrでロードするurlの末尾に `?12345678(タイムスタンプ)` みたいなのをつける手もある。でもこれはこれで別の問題になる事がたまにある。だから一番最初に書いたやり方が一番マシだと思う
+    - そもそも大体これが問題になるのはどちらかというとjsファイルではなく、xhrでjsonとか画像とかロードする時。なのでxhrでロードするurlの末尾に `?12345678(タイムスタンプ)` みたいなのをつける手もある。でもこれはこれで別の問題になる事がたまにある。だから最初に書いたやり方が一番マシだと思う
 
 - npm色々しんどい！
     - ワカル
+    - とりあえず自分用のメモを置いときます
+        - `npx shadow-cljs help` でサブコマンド一覧が見れる
+        - `npm run` を引数なしで実行する事で、package.jsonで定義されたタスク一覧を確認できる
+        - 新しいnpmパッケージをrequireしたい時は `npm i (パッケージ名) --save` する。requireしたい訳じゃなくてただ単にpackage.json内のscripts欄で使いたいだけの場合は `npm i (パッケージ名) --save-dev` する
+        - `npm outdated` で各npmパッケージが最新版かどうかチェックできる
+        - npm環境でのhttpサーバの立て方(ちょっと癖あり)
+            - `npx http-server -a 127.0.0.1 ./public -p 8080`
+                - オプション詳細 https://www.npmjs.com/package/http-server
+            - prod版ビルド後の動作確認を簡単に取りたい時にこれを使う
 
 
 
@@ -157,7 +189,14 @@ TODO: もっとよい記事タイトルを考えましょう
     - スマホアプリ化して、google playやapp storeに置くのも視野に入るぜ(できるとは言ってない)
     - nintendo switch上で動かすのも視野に入るぜ(公式にはパブリッシャーを通す必要あり)
     - WebGLゲーなら生domや仮想domにあんまり悩まされないぜ(少しは悩まされる)
-    - つくったゲームがおもしろい出来になるかにcljsが有利も不利もないけど、自分の好きな言語で素早く開発サイクルを回していけるなら品質は良くなるぜ(品質が良くてもゲームがおもしろいかはまた別)
+    - つくったゲームがおもしろい出来になるかにcljsが有利も不利もないけど、自分の好きな言語で素早く開発サイクルを回していけるのは非常に強いぜ
+    - GCに気をつけようぜ
+        - うっかりオブジェクト生成を毎フレーム起こしてしまうとやばいぜ
+        - 明示的に解放する必要のあるjsインスタンスに気をつけようぜ
+        - ブラウザのjsエンジンによっては循環参照構造を持つfnは残り続けるかもしれないぜ(手で循環参照を断ち切れるようにしておこうぜ)
+
+
+
 
 
 

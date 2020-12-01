@@ -196,7 +196,8 @@
 
 
 (defn fatal! [msg]
-  (let [^js div (js/document.createElement "div")
+  (let [^js root (js/document.createElement "div")
+        ^js div (js/document.createElement "div")
         ^js span (js/document.createElement "span")]
     (while js/document.body.firstChild
       (js/document.body.removeChild js/document.body.firstChild))
@@ -204,24 +205,30 @@
     (set-style! span
                 :display "inline-block"
                 :font-weight "bold"
+                :margin "0"
+                :padding "2em"
+                :white-space "pre-line"
+                :font-family "serif")
+    (set-style! div
+                :position "fixed"
+                :max-width "98%"
+                :max-height "98%"
                 :background-color "black"
                 :color "white"
                 :border "4px solid red"
-                :margin "0"
-                :padding "2em"
-                :max-width "80%"
-                :max-height "80%"
                 :overflow-x "hidden"
                 :overflow-y "auto"
-                :font-family "serif")
-    (set-style! div
-                :position "absolute"
                 :top "50%"
                 :left "50%"
                 :transform "translate(-50%,-50%)")
+    (set-style! root
+                :position "relative"
+                :width "100%"
+                :height "100%")
     (set-style! js/document.body :background-color "black")
     (.appendChild div span)
-    (.appendChild js/document.body div)
+    (.appendChild root div)
+    (.appendChild js/document.body root)
     (throw (js/Error. msg))))
 
 
@@ -494,16 +501,13 @@
 
 
 
-;;; 何個かプリセットを用意
-
-;;; TODO
 
 
 
 
 (defn make-label [label-string & args]
   (let [options (merge {:font-family "'Courier New', 'Courier', serif"
-                        :fill 0xFFFFFF
+                        :fill #js [0xFFFFFF]
                         :align "center"
                         :font-size 48
                         :padding 8
@@ -543,11 +547,13 @@
                        (args->map args))
         {:keys [anchor-x anchor-y
                 border padding
-                outline-color bg-color
+                outline-color bg-color fg-color
                 label-options]} options
         label-options (merge {
                               ;; TODO
                               }
+                             (when fg-color
+                               {:fill fg-color})
                              (args->map label-options))
         ^js c (pixi/Container.)
         ^js label (make-label label-string label-options)
@@ -619,7 +625,7 @@
                        :y label-y
                        )
     (.on bg-outer "mousedown" handle)
-    (.on bg-outer "touchend" handle)
+    (.on bg-outer "touchend" handle) ; TODO: "touchstart" にすべきかも
     (.addChild c bg-outer)
     (.addChild c bg-inner)
     (.addChild c label)
@@ -648,9 +654,16 @@
           paths (map resolve-texture-path ks)]
       (doseq [path paths]
         (.add loader path path))
+      (.add (.-onError loader)
+            (fn [^js err _ ^js resource]
+              (fatal! (str "ファイルのロードに失敗しました"
+                           "\n"
+                           ;(.-message err)
+                           ;"\n"
+                           (.-url resource)
+                           ""))))
       (.load loader
              (fn [^js loader ^js resources]
-               ;; TODO: resourcesからエラーチェックする事！エラーが入ってると、いつまでたっても完了しなくなる…
                (let [ts (doall (map #(pixi/Texture.from %) paths))
                      a-done? (atom nil)]
                  (reset! a-done?

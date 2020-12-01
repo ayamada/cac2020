@@ -4,7 +4,7 @@
 
 
 ;;; 煙/雲。32x32。
-(def smoke32x32
+(def smoke
   (util/str* "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf"
              "8/9hAAABNUlEQVQ4jYWToY6DUBBFGxIEAoHBYBAkiCpkTSUGi8GgVmFwqDW4ui"
              "pcDZ9Qi62v3B9Yvd9w1tyhb5vSJbnhpZ17eufNdLd78wA+EAAe4L+rNYMHBDoH"
@@ -16,21 +16,21 @@
              "AAAElFTkSuQmCC"))
 
 ;;; さくらんぼ。16x16
-(def cherry16x16
+(def cherry
   (util/str* "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf"
              "8/9hAAAAZElEQVQ4jWNgoCL4j4ZJ07y9URsFk2oQhkZyDIJrRPYKmkHEuwZJA3"
              "rYEDQIwxWvjZRRMCFDULyCrpmQIVgVEmsAXttg7P///5NvAEwz0QYg20ay/7HY"
              "RlQ0khxlWA0h1jaqAACvLONemBcg4QAAAABJRU5ErkJggg=="))
 
-;;; 葉。8x8
-(def leaf8x8
+;;; 葉。16x16
+(def leaf
   (util/str* "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAgMAAABi"
              "nRfyAAAADFBMVEVHcExRkBMAYhhtqRE0DJ/fAAAAAXRSTlMAQObYZgAAAEBJRE"
              "FUCNdjYEAA9qgJDAyxyxkYmG/VAHnpJQwM/NMDGBh4tzswMMiVAlWYAYUYJIFC"
              "DNJAIQZOkC42EMEEMwMAlKIIPdyq1roAAAAASUVORK5CYII="))
 
 ;;; プリン。16x16
-(def pudding16x16
+(def pudding
   (util/str* "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAgMAAABi"
              "nRfyAAAADFBMVEVHcEz/2QCiIgD4mQCvKmLyAAAAAXRSTlMAQObYZgAAADpJRE"
              "FUCNdjYEAArgUMDEyrVjUwMGatdGBgDA11YGANDQ1AIkRDQ0OQCNPQ0BgG/tDQ"
@@ -45,7 +45,7 @@
              "AAAElFTkSuQmCC"))
 
 ;;; distance field処理済の、中塗りされた円。16x16。
-(def sphere16x16
+(def sphere
   (util/str* "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf"
              "8/9hAAAAvklEQVQ4ja3TMQrCQBCFYSHgCWxTew+xSGmTJhfwKlYinsQqR7DwJl"
              "apU30WjhBjXKNxYGBZ9v07b3Z2NksEMmSpM0OiOZYoUEUWsTf/JF6gxB41LpE1"

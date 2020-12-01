@@ -10,7 +10,7 @@
 (def screen-w 960)
 (def screen-h 960)
 
-(def bg-style "url('bg.png')")
+(def bg-url "bg.png")
 
 
 ;;; TODO: singleton実装なのはよくない、なおしたい
@@ -56,9 +56,10 @@
 
 
 (defn- add-bg-image! []
-  (when bg-style
-    (set! js/document.body.style.backgroundImage bg-style)
-    (set! js/document.documentElement.style.backgroundImage bg-style)))
+  (when bg-url
+    (let [bg-image (str "url('" bg-url "')")]
+      (set! js/document.body.style.backgroundImage bg-image)
+      (set! js/document.documentElement.style.backgroundImage bg-image))))
 
 
 
