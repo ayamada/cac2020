@@ -3,6 +3,7 @@
             ["pixi.js" :as pixi]
             [cac2020.game :as game]
             [cac2020.util :as util :include-macros true]
+            [cac2020.pointer :as pointer]
             ))
 
 
@@ -110,6 +111,8 @@
     (.appendChild js/document.body canvas)
     (add-bg-image!)
     (util/setup-canvas! canvas)
+    ;(util/setup-global-pointer!)
+    (pointer/install!)
     (.addChild stage root-container)
     (.addChild stage loading-layer)
     (swap! a-state

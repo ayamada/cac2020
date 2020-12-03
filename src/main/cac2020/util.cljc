@@ -247,9 +247,13 @@
 (declare destroy-them-all!)
 (defn destroy-all-children! [^js dobj]
   (when dobj
-    (doseq [child (.-children dobj)]
-      (destroy-them-all! child))
-    (.removeChildren dobj)))
+    (let [^js children (.-children dobj)
+          n (alength children)]
+      (dotimes [i n]
+        (let [i (- n i 1)
+              ^js child (aget children i)]
+          (destroy-them-all! child)))
+      (.removeChildren dobj))))
 (defn destroy-them-all! [^js dobj]
   (when (and dobj (not (aget dobj "_destroyed")))
     (when-let [parent (.-parent dobj)]
@@ -306,6 +310,33 @@
       c)))
 
 
+(defn traverse-container-tree! [container-tree indexer]
+  (when container-tree
+    (when-let [^js children (.-children container-tree)]
+      (let [n (alength children)]
+        (dotimes [i n]
+          (let [i (- n i 1)
+                ^js child (aget children i)]
+            (traverse-container-tree! child indexer)))))
+    (indexer container-tree)
+    nil))
+
+(defn index-container-tree! [container-tree a & [extra-namespace]]
+  (let [kns (when extra-namespace
+              (or
+                (when (or
+                        (keyword? extra-namespace)
+                        (symbol? extra-namespace))
+                  (namespace extra-namespace))
+                (name extra-namespace)))
+        f (fn [^js dobj]
+            (when dobj
+              (when-let [name-str (.-name dobj)]
+                (let [k (keyword kns name-str)]
+                  (assert (not (contains? @a k))
+                          (str "found duplicated index key " k))
+                  (swap! a assoc k dobj)))))]
+    (traverse-container-tree! container-tree f)))
 
 
 
@@ -354,6 +385,12 @@
   nil)
 
 
+
+
+
+(defn stop-propagation! [^js e]
+  (when (.-stopPropagation e)
+    (.stopPropagation e)))
 
 
 (defn terraform! []
@@ -591,8 +628,8 @@
                                         :interactive true
                                         :button-mode true)
         handle (fn [^js e]
-                 (when (.-preventDefault e)
-                   (.preventDefault e))
+                 (when (.-stopPropagation e)
+                   (.stopPropagation e))
                  (reset! a-need-button-effect? true)
                  (when click-handle
                    (click-handle c))
@@ -625,7 +662,11 @@
                        :y label-y
                        )
     (.on bg-outer "mousedown" handle)
-    (.on bg-outer "touchend" handle) ; TODO: "touchstart" にすべきかも
+    (.on bg-outer "mouseup" stop-propagation!)
+    (.on bg-outer "touchstart" handle)
+    (.on bg-outer "touchend" stop-propagation!)
+    ;(.on bg-outer "mousemove" stop-propagation!)
+    ;(.on bg-outer "touchmove" stop-propagation!)
     (.addChild c bg-outer)
     (.addChild c bg-inner)
     (.addChild c label)
