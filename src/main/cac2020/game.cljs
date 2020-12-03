@@ -11,13 +11,20 @@
 
 
 
-;;; - 歩き(走り)モーションをつけましょう
-;;;     - ドットパターンを追加する？
-;;;         - とりあえず↓だけで。物足りなければ追加を考える
-;;;     - h変動、y変動、r変動、等々をする？skewでなんとかする？
-;;;         - とりあえずy変動で、小さくジャンプさせたりする
-;;;         - spdと同様に、ジャンプ用変数を用意する。spd-xとspd-yに分ける？
-;;;             - できれば放物線にしたいが、デコジャンプでもokとする
+;;; - アイテムをspawn、表示、動かし、ゲットできるようにしましょう
+;;;     - 現状では地面がスクロールしているだけ、他の何もスクロール追随していない、これをなんとかする必要がある
+
+
+;;; - 敵をspawn、表示、動かしましょう
+;;;     - 動きは、上空を飛行する感じで
+;;;     - どのテクスチャを使う？
+;;;         - 立方体三種？
+;;;         - psg？
+;;;         - コロッケ？
+;;;         - バナ？
+;;;         - オレンジ？
+;;;     - どういう攻撃をしてくる？
+;;;         - sp16x16を射出。これでも残像エフェクトをつけるとそれっぽくはなる。これを検討
 
 
 
@@ -28,6 +35,13 @@
 ;;;     - ...
 ;;;     - ...
 ;;;     - ...
+
+
+;;; - 武器射出ゲー案のルール検討
+;;;     - 真上連射固定
+;;;     - クリックした方向に角度指定可能
+;;;     - 放物線？直線？
+
 
 
 ;;; - 武器を取ったら武器で攻撃できるようにしましょう
@@ -45,22 +59,6 @@
 ;;;     - 剣？
 ;;;     - ブーメラン？
 ;;;     - 立方体？
-
-;;; - プレイヤーのゲーム内論理座標を記録しましょう
-;;;     - アイテムや敵やゴールの出現管理に使う為に必要
-
-;;; - 敵をspawn、表示、動かしましょう
-;;;     - 動きは、上空を飛行する感じで
-;;;     - どのテクスチャを使う？
-;;;         - 立方体三種？
-;;;         - psg？
-;;;         - コロッケ？
-;;;         - バナ？
-;;;         - オレンジ？
-;;;     - どういう攻撃をしてくる？
-;;;         - sp16x16を射出。これでも残像エフェクトをつけるとそれっぽくはなる。これを検討
-
-
 
 
 
@@ -82,31 +80,10 @@
 ;;;                 - 今回はこれだけで。複雑なゲーム内容にする余地はない
 
 
-
-;;; - 縦スクロール？横スクロール？固定画面？
-;;; - 左右移動
-;;;     - dc-ui？トマトマ移動？
-;;;     - スクロールあり？なし？
-;;; - 剣が落ちてて、拾うと画面下部中央にボタン出現、これで剣を真上に射出できる。剣を拾うほど連射可
-;;;     - 剣ではなく弓矢とかブーメランとかトマホークの方がよい？
-;;;     - ジャンプブーツとかウイングにする？
-;;; - 空に巨大フルーツが浮いている、そこに武器を打ち込むと小さいフルーツをゲット、一定回数で巨大フルーツは消える
-;;;     - フルーツ収穫でどんないい事がある？
-;;;         - スコア加算
-;;;         - スコア倍率アップ
-;;;         - パワーアップ
-;;;     - 巨大フルーツの動きは？
-;;;         - 縦スクロール追随？
-;;;         - ネコゴのように横に流れる？
 ;;; - クリア条件は？
 ;;;     - 1分固定(それまでのスコアを稼ぐ)
 ;;;     - 最上部にいる敵ボスを倒す(それまでのタイムを競う)
 ;;;     - 画面内の敵を殲滅(それまでのタイムを競う)
-;;;     - ...
-;;;     - ...
-;;;     - ...
-
-
 
 
 
@@ -277,11 +254,13 @@
 
 (defn- update-status-label! [& [status-label]]
   (let [
+        status-label (or status-label (:tree/status-label @a-state))
         ;{:keys [space-spd-x space-spd-y space-spd-z space-spd-yaw space-spd-pitch]} @a-state
         score (or (:score @a-state) 0)
-        text (str "SCORE: " score
+        travel-distance (or (:travel-distance @a-state) 0)
+        text (str " SCORE: " score
                   "\n"
-                  ""
+                  "TRAVEL: " (int (/ travel-distance 100)) "m"
                   )
         ]
     (util/set-properties! status-label :text text)))
@@ -490,6 +469,7 @@
       (make-ground :tree/near s-w s-h (+ ground-base) 1 0xEFEFEF)
       (make-ground :tree/nearest s-w s-h (+ ground-base -96) 2 0xFFFFFF)
       ])
+   [:tree/far-effect-layer]
    [:tree/main-layer
     [:tree/player-layer
      {
@@ -505,6 +485,7 @@
                            :alpha 0.5
                            :tint 0x000000
                            :name (name :tree/player-ds))
+     [:tree/player-effect-layer]
      (util/set-properties! (util/->sp dataurl/p8elf)
                            :anchor/x 0.5
                            :anchor/y 0.95
@@ -517,7 +498,7 @@
    (make-gameover-layer s-w s-h)
    (make-ui-layer s-w s-h)
    (make-title-layer s-w s-h)
-   [:tree/effect-layer]])
+   [:tree/near-effect-layer]])
 
 (defn- create! [app]
     (swap! a-state
@@ -542,6 +523,7 @@
            assoc
            :mode :title
            :score 0
+           :travel-distance 0
            )
     (util/index-container-tree! stage a-state :tree/*)
     stage))
@@ -583,7 +565,7 @@
                             (* delta-frames 4)
                             0)))
     (when (= :game (:mode @a-state))
-      (let [{:keys [last-pressed? last-touch-pos last-spd]} @a-state
+      (let [{:keys [last-pressed? last-touch-pos last-spd travel-distance]} @a-state
             pressed? (and last-pressed? (pointer/pressed?))
             ;last-touch-x (when pressed?
             ;               (pos/->x last-touch-pos))
@@ -601,11 +583,13 @@
                              base-acc-x
                              (- base-acc-x)))
             new-spd-x (max 0 (min (+ old-spd-x delta-spd-x) max-spd-x))
+            delta-travel-distance (* new-spd-x delta-frames)
+            new-travel-distance (+ travel-distance delta-travel-distance)
             old-player-jump (- (util/property player-sp :y))
             trigger-jump? (and
                             pressed?
                             (zero? old-player-jump)
-                            (pos? new-spd-x))
+                            (not (zero? new-spd-x)))
             old-spd-y (pos/->y last-spd)
             new-spd-y (+ old-spd-y (* base-acc-y delta-frames))
             new-spd-y (if trigger-jump?
@@ -614,18 +598,29 @@
             delta-player-jump (* new-spd-y delta-frames)
             new-player-jump (max 0 (min (- old-player-jump delta-player-jump)
                                         max-jump))
-            ]
+            just-landed? (and
+                           (not (zero? old-player-jump))
+                           (zero? new-player-jump))]
         (when (and last-pressed? (not pressed?))
           (swap! a-state assoc :last-pressed? false))
         (pos/set! last-spd new-spd-x new-spd-y)
+        (when-not (zero? delta-travel-distance)
+          (swap! a-state assoc :travel-distance new-travel-distance))
         (when-let [layer (:tree/ground-layer @a-state)]
-          (scroll-all-ground! layer (* delta-frames new-spd-x) 0))
+          (scroll-all-ground! layer delta-travel-distance 0))
+        (when-not (= (int (/ travel-distance 100))
+                     (int (/ new-travel-distance 100)))
+          (update-status-label!))
         (util/set-property! player-sp :y (- new-player-jump))
+        (when just-landed?
+          (util/effect-smoke! (:tree/player-effect-layer @a-state)
+                              15
+                              :size 64
+                              ;:x (.-x player-layer)
+                              ;:y (.-y player-layer)
+                              ))
         (when trigger-jump?
-          ;; TODO: smokeを出す
-          (util/se! :se/puyo-psg :volume 0.5)
-          )
-        ;; TODO: プレイヤー論理座標の更新も必要
+          (util/se! :se/puyo-psg :volume 0.5))
         ))
     ;; TODO
     ))

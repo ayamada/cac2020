@@ -1,6 +1,5 @@
 (ns cac2020.dataurl
-  (:require [clojure.string :as string]
-            [cac2020.util :as util :include-macros true]))
+  (:require-macros [cac2020.util :as util]))
 
 
 ;;; 煙/雲。32x32。

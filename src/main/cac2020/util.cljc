@@ -3,6 +3,7 @@
   (:require [clojure.string :as string]
             #?(:cljs ["pixi.js" :as pixi])
             #?(:cljs ["va5" :as va5])
+            #?(:cljs [cac2020.dataurl :as dataurl])
             ))
 
 
@@ -13,7 +14,7 @@
         s (if-let [[_ m] (re-find #"^(.*)\?$" s)]
             (str "is-" m)
             s)
-        s (string/replace s #"-." #(string/upper-case (subs % 1)))]
+        s (string/replace s #"(?<!^)-." #(string/upper-case (subs % 1)))]
     s))
 
 (defn name->camel-string [k]
@@ -542,6 +543,7 @@
 
 
 
+
 (defn make-label [label-string & args]
   (let [options (merge {:font-family "'Courier New', 'Courier', serif"
                         :fill #js [0xFFFFFF]
@@ -715,6 +717,55 @@
                                (cont))
                              (js/window.setTimeout @a-done?))))
                  (@a-done?)))))))
+
+
+
+
+
+
+
+
+(defn effect-smoke! [^js parent ttl-frames & args]
+  (assert parent)
+  (assert (pos? ttl-frames))
+  (let [options (merge {:quantity 4
+                        :size 128
+                        :x 0
+                        :y 0
+                        ;; TODO: もっとパラメータを設定できるようにする
+                        }
+                       (args->map args))
+        {:keys [x y quantity size]} options
+        base-dist size
+        base-r (* (/ ttl-frames 150) 2 js/Math.PI)
+        h (fn [^js sp progress]
+            (when-not (aget sp "_destroyed")
+              (m/set-properties! sp
+                                 :x (+ (m/property sp :-start-x)
+                                       (* (m/property sp :-diff-x) progress))
+                                 :y (+ (m/property sp :-start-y)
+                                       (* (m/property sp :-diff-y) progress))
+                                 :rotation (+ (m/property sp :-start-r)
+                                              (* (m/property sp :-diff-r)
+                                                 progress))
+                                 :alpha (- 1 progress))))]
+    (dotimes [i quantity]
+      (let [r (rand (* 2 js/Math.PI))
+            diff-x (- (rand (* base-dist 2)) base-dist)
+            diff-y (- (rand (* base-dist 2)) base-dist)
+            diff-r (- (rand (* base-r 2)) base-r)
+            sp (m/set-properties! (->sp dataurl/smoke)
+                                  :anchor/x 0.5
+                                  :anchor/y 0.5
+                                  :width size
+                                  :height size
+                                  :-start-x x
+                                  :-start-y y
+                                  :-start-r r
+                                  :-diff-x diff-x
+                                  :-diff-y diff-y
+                                  :-diff-r diff-r)]
+        (register-effect! parent sp ttl-frames h)))))
 
 
 
