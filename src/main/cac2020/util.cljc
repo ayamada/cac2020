@@ -237,12 +237,13 @@
 
 
 
-
 (def vibrate!
   (if js/window.navigator.vibrate
     (fn [msec]
       (js/window.navigator.vibrate msec))
     (fn [msec] nil)))
+
+
 
 
 (declare destroy-them-all!)
@@ -372,13 +373,19 @@
   (when k
     (va5/se (resolve-audio-path k) (map->js-obj (args->map args)))))
 
+(defn make-play-se-periodically [interval-sec k & args]
+  (va5/makePlaySePeriodically interval-sec
+                              (resolve-audio-path k)
+                              (map->js-obj (args->map args))))
+
 
 
 
 
 (defn init-audio! []
-  (va5/setConfig "is-output-error-log" false)
-  (va5/setConfig "is-output-debug-log" false)
+  (let [va5-debug? false]
+    (va5/setConfig "is-output-error-log" va5-debug?)
+    (va5/setConfig "is-output-debug-log" va5-debug?))
   (va5/setConfig "volume-master" 0.6)
   (va5/setConfig "is-pause-on-background" true)
   (va5/setConfig "is-unload-automatically-when-finished-bgm" true)
@@ -386,6 +393,11 @@
   nil)
 
 
+
+;;; TODO: より分かりやすい名前にする
+(defn calc-center-x [x w anchor-x] (+ x (* w (- 0.5 anchor-x))))
+(def calc-center calc-center-x)
+(def calc-center-y calc-center)
 
 
 
@@ -507,6 +519,14 @@
     nil))
 
 (defn register-tween! [target-obj ttl-frames handle]
+  ;; TODO: これをどうするかは悩むところ。今回はなしで
+  ;(let [total (alength all-tween-entries)]
+  ;  (dotimes [i0 total]
+  ;    (let [i (- total i0 1)
+  ;          ^cljs entry (aget all-tween-entries i)
+  ;          o (.-target-obj entry)]
+  ;      (when (= target-obj o)
+  ;        (.splice all-tween-entries i 1)))))
   (let [^cljs entry (js-obj)]
     (set! (.-target-obj entry) target-obj)
     (set! (.-now-frames entry) 0)
@@ -518,6 +538,30 @@
 
 
 
+
+(defn tween-vibrate! [^js target-obj ttl-frames power]
+  (let [total (alength all-tween-entries)]
+    (loop [i (dec total)]
+      (if-not (neg? i)
+        (let [^cljs entry (aget all-tween-entries i)]
+          (when-not (= target-obj (.-target-obj entry))
+            (recur (dec i))))
+        (let [orig-x (.-x target-obj)
+              orig-y (.-y target-obj)
+              r-p (inc (* 2 power))
+              m-p (- power)
+              h (fn [^js o progress]
+                  (if (= 1 progress)
+                    (m/set-properties! o :x orig-x :y orig-y)
+                    (let [r (- 1 progress)]
+                      (m/set-properties! o
+                                         :x (+ (* r (+ (rand-int r-p) m-p))
+                                               orig-x)
+                                         :y (+ (* r (+ (rand-int r-p) m-p))
+                                               orig-y)))))]
+          (register-tween! target-obj
+                           ttl-frames
+                           h))))))
 
 
 
@@ -754,7 +798,7 @@
             diff-x (- (rand (* base-dist 2)) base-dist)
             diff-y (- (rand (* base-dist 2)) base-dist)
             diff-r (- (rand (* base-r 2)) base-r)
-            sp (m/set-properties! (->sp dataurl/smoke)
+            sp (m/set-properties! (->sp (dataurl/smoke))
                                   :anchor/x 0.5
                                   :anchor/y 0.5
                                   :width size
