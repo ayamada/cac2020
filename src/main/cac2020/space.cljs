@@ -1,8 +1,10 @@
 (ns cac2020.space
   (:refer-clojure :exclude [update!])
   (:require ["pixi.js" :as pixi]
-            [cac2020.util :as util :include-macros true]
+            [cac2020.property :as p :include-macros true]
+            [cac2020.util :as util]
             [cac2020.dataurl :as dataurl]
+            [cac2020.pixi.util :as putil]
             ))
 
 ;;; 星空表示用
@@ -57,17 +59,17 @@
         sp-s (* star-base-scale s)]
     ;; NB: 再配置後すぐに画面外に消える星が目立つ(ちらつく)ので、再配置直後は
     ;;     非表示にする事とした
-    (util/set-properties! sp
-                          :x x
-                          :y y
-                          :z-index (- dist)
-                          :scale/x sp-s
-                          :scale/y sp-s
-                          :alpha 0
-                          :-dist dist
-                          :-f-x f-x
-                          :-f-y f-y
-                          )))
+    (p/set! sp
+            :x x
+            :y y
+            :z-index (- dist)
+            :scale/x sp-s
+            :scale/y sp-s
+            :alpha 0
+            :-dist dist
+            :-f-x f-x
+            :-f-y f-y
+            )))
 
 
 (defn- move-star! [^js sp sightbox
@@ -77,9 +79,9 @@
                 nearest near far farthest
                 w h focus-x focus-y
                 star-base-scale]} sightbox
-        old-dist (util/property sp :-dist)
-        old-f-x (util/property sp :-f-x)
-        old-f-y (util/property sp :-f-y)
+        old-dist (p/get sp :-dist)
+        old-f-x (p/get sp :-f-x)
+        old-f-y (p/get sp :-f-y)
         angle (/ old-dist far)
         yaw-move-x (* yaw angle)
         pitch-move-y (* pitch angle)
@@ -133,17 +135,17 @@
     (case respawn-position
       nil (let [new-a (calc-a new-dist nearest near far farthest)
                 sp-s (* star-base-scale new-s)]
-            (util/set-properties! sp
-                                  :x new-x
-                                  :y new-y
-                                  :z-index (- new-dist)
-                                  :scale/x sp-s
-                                  :scale/y sp-s
-                                  :alpha new-a
-                                  :-dist new-dist
-                                  :-f-x new-f-x
-                                  :-f-y new-f-y
-                                  ))
+            (p/set! sp
+                    :x new-x
+                    :y new-y
+                    :z-index (- new-dist)
+                    :scale/x sp-s
+                    :scale/y sp-s
+                    :alpha new-a
+                    :-dist new-dist
+                    :-f-x new-f-x
+                    :-f-y new-f-y
+                    ))
       :near (let [side? (zero? (rand-int 2))]
               (respawn-star! sightbox
                              sp
@@ -172,10 +174,10 @@
 ;;; カメラのロールはなし(layerのrotationで実現可能なので)
 (defn update!
   [^js layer camera-move-x camera-move-y camera-move-z yaw pitch]
-  (let [sightbox (util/property layer :-sightbox)
-        old-camera-x (util/property layer :-camera-x)
-        old-camera-y (util/property layer :-camera-y)
-        old-camera-z (util/property layer :-camera-z)
+  (let [sightbox (p/get layer :-sightbox)
+        old-camera-x (p/get layer :-camera-x)
+        old-camera-y (p/get layer :-camera-y)
+        old-camera-z (p/get layer :-camera-z)
         new-camera-x (+ old-camera-x camera-move-x)
         new-camera-y (+ old-camera-y camera-move-y)
         new-camera-z (+ old-camera-z camera-move-z)
@@ -188,14 +190,14 @@
     (dotimes [i (alength children)]
       (let [^js sp (aget children i)]
         ;; TODO: ランダム星以外もこのレイヤに置く場合はここに分岐を追加
-        (assert (= ::star (util/property sp :-type)))
+        (assert (= ::star (p/get sp :-type)))
         (move-star! sp sightbox
                     camera-move-x camera-move-y camera-move-z
                     yaw pitch)))
-    (util/set-properties! layer
-                          :-camera-x new-camera-x
-                          :-camera-y new-camera-y
-                          :-camera-z new-camera-z)))
+    (p/set! layer
+            :-camera-x new-camera-x
+            :-camera-y new-camera-y
+            :-camera-z new-camera-z)))
 
 
 
@@ -251,24 +253,24 @@
             tint (+ (* 0x10000 (+ base-color (rand-int random-max)))
                     (* 0x100 (+ base-color (rand-int random-max)))
                     (* 0x1 (+ base-color (rand-int random-max))))]
-        (util/set-properties! sp
-                              :anchor/x 0.5
-                              :anchor/y 0.5
-                              :tint tint
-                              :-type ::star)
+        (p/set! sp
+                :anchor/x 0.5
+                :anchor/y 0.5
+                :tint tint
+                :-type ::star)
         (respawn-star! sightbox sp nil nil nil)
         (.addChild layer sp)))
-    (util/set-properties! layer
-                          :sortable-children (not dont-sort?)
-                          :-sightbox sightbox
-                          :-camera-x camera-x
-                          :-camera-y camera-y
-                          :-camera-z camera-z
-                          )
+    (p/set! layer
+            :sortable-children (not dont-sort?)
+            :-sightbox sightbox
+            :-camera-x camera-x
+            :-camera-y camera-y
+            :-camera-z camera-z
+            )
     layer))
 
 
 (defn destroy! [layer]
-  (util/dea! layer))
+  (putil/dea! layer))
 
 

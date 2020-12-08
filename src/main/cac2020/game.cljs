@@ -1,38 +1,48 @@
 (ns cac2020.game
+  (:require-macros [cac2020.macro :as m])
   (:require [clojure.string :as string]
             ["pixi.js" :as pixi]
             ["va5" :as va5]
-            [cac2020.util :as util :include-macros true]
+            [cac2020.property :as p :include-macros true]
+            [cac2020.util :as util]
             [cac2020.space :as space]
             [cac2020.dataurl :as dataurl]
             [cac2020.pos :as pos]
             [cac2020.pointer :as pointer]
+            [cac2020.game.ending :as ending]
+            [cac2020.pixi.util :as putil]
+            [cac2020.tween :as tween]
             ))
 
 
-;;;     - エンディング
-;;;         - マリオレベルのクリアデモ(花火が上がる的な)を表示しましょう
-;;;             - 家がロケット的に発進する？
-;;;         - Congratulations!のメッセージを表示しましょう
-;;;         - スコア表示とランキング登録ボタンを表示しましょう
+;;; 「おうちかえる！」という台詞付きのサムネを用意しましょう
 
 
-;;; - トマトマ同様、TRAVELに重ねるようにして進行度バーを表示する方式で
+
+;;; - タイムの管理と表示
+;;;     - delta-framesによる判定は多分よくない(一時停止している時にタイムも止まる)、リアル時間ベースのタイム管理の方が多分よい
+;;;     - va5を使うか？悩ましいところ…
+;;;         - これが一番楽だと思う。タッチ起動はスタートボタンで満たしている筈
+;;;     - タイムを左上に表示させる
+;;;     - タイムが1秒増える毎にlabelを更新する(毎フレーム更新はしない)
 
 
-;;; - 敵の用意
-;;;     - どのテクスチャを使う？
-;;;         - 立方体三種？
-;;;         - psg？
-;;;         - コロッケ？
-;;;         - バナ？
-;;;         - オレンジ？
-;;;     - どういう攻撃をしてくる？
-;;;         - 体当たり(もしくはランダム移動など)
-;;;         - sp16x16を射出。これでも残像エフェクトをつけるとそれっぽくはなる。これを検討
-;;;         - これに当たると常に左方向にノックバック発生
-;;;     - 動きは、上空を飛行する感じで。もしくは地面を配置など、まちまち
 
+;;; - トマトマ同様、TRAVELに重ねるようにして進行度バーを表示する
+;;;     - とりあえずゴール距離を数値で表示するだけでよいか？
+;;;     - ゴール距離は (Math/round (/ (- goal-pos 400) 100)) で求められる
+
+
+
+;;; - 進行度に応じてオブジェクトを適切に配置していくシステムを用意しましょう
+;;;     - プリンをランダム？固定位置？配置してみましょう
+
+;;; - defobj回りを別namespaceに隔離。 cac2020.game.object あたりで
+
+
+
+;;; NB: goal-posに実際のlodgeがあるが、ゴール判定はその-6m地点にあり、そこからエンディング内移動で右に+2m進む。なのでgoal-posは+400しておくとよい
+(def goal-pos 10400)
 
 
 
@@ -56,76 +66,105 @@
                     :se/submit-psg
                     :se/puyo-psg
                     :bgm/bsbs__LE661501
+                    :se/launch-psg
                     :se/lvup-midi
                     ;; TODO: 以下は使うかどうか分からない
                     ;:se/yarare-psg
                     ))
 
 (defn- preload! [app cont]
-  (util/load-textures! cont
-                       ;; 以下は利用中
-                       :ground
-                       :lodge
-                       ;; 以下は使う予定だがまだ使ってない
-                       :nova
-                       :orange
-                       :banana
-                       :cube3
-                       ;; 以下は使うかどうか分からない
-                       ;:driftcat2020
-                       ;:korokke128x96x14
-                       ;:dishkorokke112x68x14
-                       ))
+  (putil/load-textures! cont
+                        ;; 以下は利用中
+                        :ground
+                        :lodge
+                        :flame1 ; endingで使う
+                        ;; 以下は使う予定だがまだ使ってない
+                        :nova
+                        :orange
+                        :banana
+                        :cube3
+                        ;; 以下は使うかどうか分からない
+                        ;:driftcat2020
+                        ;:korokke128x96x14
+                        ;:dishkorokke112x68x14
+                        ))
 
 
 
-;(defn- emit-retry! [b]
-;  (util/se! :se/submit-psg)
-;  (util/set-property! (:tree/gameover-layer @a-state)
-;                      :visible false)
-;  ;; TODO
-;  (js/window.setTimeout (fn []
-;                          ;; TODO
-;                          )
-;                        500))
-
-;(defn- make-gameover-layer [s-w s-h]
-;  [:tree/gameover-layer
-;   {:visible false}
-;   (util/set-properties! (util/make-label "Congratulations!"
-;                                          :font-family "serif"
-;                                          :font-size 80
-;                                          :fill #js [0xFFFFFF 0x7F7FFF]
-;                                          )
-;                         :anchor/x 0.5
-;                         :anchor/y 0.5
-;                         :x (* s-w 0.5)
-;                         :y (* s-h 0.4)
-;                         :name (name :tree/gameover-caption))
-;   ;(util/set-properties! (util/make-button "再挑戦"
-;   ;                                        emit-retry!
-;   ;                                        :padding 64
-;   ;                                        )
-;   ;                      :x (* s-w 0.5)
-;   ;                      :y (* s-h 0.7)
-;   ;                      :name (name :tree/replay-button))
-;   ])
-;
-;(defn- emit-gameover! []
-;  (let [gameover-layer (:tree/gameover-layer @a-state)
-;        ]
-;    (util/se! :se/lvup-midi)
-;    (when-let [replay-button (:tree/replay-button @a-state)]
-;      (util/set-property! replay-button :visible false))
-;    (util/set-property! gameover-layer :visible true)
-;    ;; TODO
-;    (js/window.setTimeout (fn []
-;                            (util/set-property! replay-button :visible true)
-;                            ;; TODO
-;                            )
-;                          2000)))
+(defn- emit-ranking-atsumaru! [score]
+  (let [board-id 1
+        ^js atsumaru (aget js/window "RPGAtsumaru")]
+    (.then (.. atsumaru -experimental -scoreboards board-id score)
+           (fn [& _]
+             (.then (.display (.. atsumaru -experimental -scoreboards) board-id)
+                    (fn [e]
+                      (js/console.log e)
+                      nil)))
+           (fn [e]
+             (js/console.log e)
+             nil))))
 
 
+(defn- emit-ranking! [_]
+  (util/se! :se/submit-psg)
+  (let [score (or (:score @a-state) 0)]
+    (cond
+      (aget js/window "RPGAtsumaru") (emit-ranking-atsumaru! score)
+      ;; TODO: 他のランキングシステムへの対応
+      :else (when ^boolean js/goog.DEBUG
+              (prn 'emit-ranking! score)))
+    nil))
+
+
+(defn- can-use-ranking? []
+  (boolean (or
+             (aget js/window "RPGAtsumaru")
+             ;; TODO: 他のランキングシステムへの対応
+             js/goog.DEBUG)))
+
+
+(defn- make-gameclear-layer [s-w s-h]
+  [:tree/gameclear-layer
+   {:visible false}
+   (p/set! (util/make-label "Congratulations!"
+                            :font-family "serif"
+                            :font-size 80
+                            :fill #js [0xFFFFFF 0x7F7FFF]
+                            )
+           :anchor/x 0.5
+           :anchor/y 0.5
+           :x (* s-w 0.5)
+           :y (* s-h 0.5)
+           :name (name :tree/gameover-caption))
+   (p/set! (util/make-button "RANKING" emit-ranking! :padding 32)
+           :x (* s-w 0.8)
+           :y (* s-h 0.1)
+           :visible (can-use-ranking?)
+           :name (name :tree/ranking-button))
+   ])
+
+
+
+(defn- update-status-label! [& [status-label]]
+  (let [
+        status-label (or status-label (:tree/status-label @a-state))
+        ;{:keys [space-spd-x space-spd-y space-spd-z space-spd-yaw space-spd-pitch]} @a-state
+        score (or (:score @a-state) 0)
+        ^js player-layer (:tree/player-layer @a-state)
+        travel-point (or
+                       (when player-layer
+                         (.-x player-layer))
+                       0)
+        text (str ""
+                  "TRAVEL: " (int (/ travel-point 100)) "m"
+                  "\n"
+                  " SCORE: " score
+                  )
+        ]
+    (p/set! status-label :text text)))
+
+
+;;; TODO: defobjの定義が多くなるようなら名前空間を分けたい
 ;;; TODO: 本当はマクロ化した方がよい
 (defonce a-object-defs (atom {}))
 (defn- defobj [k & args]
@@ -135,7 +174,17 @@
 
 
 (def bounce-se-puyo!
-  (util/make-play-se-periodically 0.1 :se/puyo-psg :volume 1))
+  (util/make-play-se-periodically 0.2 :se/puyo-psg :volume 1))
+
+
+
+(defn- emit-near-smoke! [x y]
+  (util/effect-smoke! (:tree/scroll-near-effect-layer @a-state)
+                      15
+                      :x x
+                      :y y
+                      :size 64
+                      ))
 
 
 
@@ -151,7 +200,7 @@
         p-w (.-width player-sp)
         p-h (.-height player-sp)
         p-anchor (.-anchor player-sp)
-        objdef (@a-object-defs (util/property o :-object-type))
+        objdef (@a-object-defs (p/get o :-object-type))
         {:keys [anchor-x anchor-y hit-w hit-h]} objdef
         o-x (.-x o)
         o-y (.-y o)
@@ -159,10 +208,10 @@
         o-h hit-h
         o-anchor-x anchor-x
         o-anchor-y anchor-y
-        p-center-x (util/calc-center old-p-x p-w (.-x p-anchor))
-        p-center-y (util/calc-center old-p-y p-h (.-y p-anchor))
-        o-center-x (util/calc-center o-x o-w o-anchor-x)
-        o-center-y (util/calc-center o-y o-h o-anchor-y)
+        p-center-x (putil/calc-center old-p-x p-w (.-x p-anchor))
+        p-center-y (putil/calc-center old-p-y p-h (.-y p-anchor))
+        o-center-x (putil/calc-center o-x o-w o-anchor-x)
+        o-center-y (putil/calc-center o-y o-h o-anchor-y)
         e-x (/ (+ p-center-x o-center-x) 2)
         e-y (/ (+ p-center-y o-center-y) 2)
         dist-x (- o-center-x p-center-x)
@@ -200,14 +249,9 @@
                     (:left :right) old-spd-y)
         ]
     (pos/set! last-spd new-spd-x new-spd-y)
-    (util/set-property! player-layer :x new-p-x)
-    (util/set-property! player-sp :y new-p-y)
-    (util/effect-smoke! (:tree/scroll-near-effect-layer @a-state)
-                        15
-                        :x e-x
-                        :y e-y
-                        :size 64
-                        )
+    (p/set! player-layer :x new-p-x)
+    (p/set! player-sp :y new-p-y)
+    (emit-near-smoke! e-x e-y)
     nil))
 
 (defn- vibrate-obj-sp! [^js o power]
@@ -232,22 +276,16 @@
                 (bounce-se-puyo!)
                 (bounce-player! o 4)
                 (util/vibrate! 100)
-                (util/tween-vibrate! (aget (.-children o) 0) 30 8)
-                ;(util/set-property! (:tree/ui-action-button @a-state) :visible true)
-                ;(util/dea! o)
+                (tween/vibrate! (aget (.-children o) 0) 30 8)
+                ;(p/set! (:tree/ui-action-button @a-state) :visible true)
+                ;(putil/dea! o)
                 )
   )
 
-(defn- emit-ending! []
-  (swap! a-state assoc :mode :ending)
-  (util/bgm! nil)
-  (let []
-    ;; TODO
-    (util/se! :se/lvup-midi)
-    ))
 
 
-(def goal-pos 4000)
+
+
 
 (defobj :lodge
   :anchor-x 0.5
@@ -255,15 +293,15 @@
   :scale 0.25
   :hit-w 256
   :hit-h 1024
-  :tex-fn #(util/->tex :lodge)
+  :tex-fn #(putil/->tex :lodge)
   :move-fn (fn [^js o delta-frames]
-             (let [player-layer (:tree/player-layer @a-state)
+             (let [^js player-layer (:tree/player-layer @a-state)
                    p-x (.-x player-layer)
                    ;(- goal-pos p-x)
                    ;x (+ p-x (* 0.5 (- goal-pos p-x)))
                    x (+ (* 0.25 goal-pos) (* 0.75 p-x))
                    ]
-               (util/set-property! o :x x)))
+               (p/set! o :x x)))
   :collide-fn (fn [o]
                 (let [last-spd (:last-spd @a-state)]
                   (pos/set-x! last-spd 0))
@@ -271,7 +309,7 @@
                   (swap! a-state assoc :wait-stop? true)
                   (let [^js player-sp (:tree/player-sp @a-state)]
                     (when (zero? (.-y player-sp))
-                      (emit-ending!)))))
+                      (ending/emit! a-state o goal-pos update-status-label!)))))
   )
 
 
@@ -292,16 +330,16 @@
                 ]} (@a-object-defs k)
         _ (assert (and anchor-x anchor-y scale hit-w hit-h tex-fn))
         ^js hit-info (pixi/Rectangle. anchor-x anchor-y hit-w hit-h)
-        ^js obj (util/set-property! (pixi/Container.)
-                                    :x x
-                                    :y y
-                                    :-object-type k
-                                    :-hit-info hit-info)
-        ^js sp (util/set-property! (util/->sp (tex-fn))
-                                   :anchor/x anchor-x
-                                   :anchor/y anchor-y
-                                   :scale/x scale
-                                   :scale/y scale)
+        ^js obj (p/set! (pixi/Container.)
+                        :x x
+                        :y y
+                        :-object-type k
+                        :-hit-info hit-info)
+        ^js sp (p/set! (putil/->sp (tex-fn))
+                       :anchor/x anchor-x
+                       :anchor/y anchor-y
+                       :scale/x scale
+                       :scale/y scale)
         ;; TODO: dsをつける事を検討
         ]
     (.addChild obj sp)
@@ -311,8 +349,11 @@
 (defn- emit-start! [b]
   (util/se! :se/submit-psg)
   (util/bgm! :bgm/bsbs__LE661501)
-  (let []
-    (util/set-property! (:tree/title-layer @a-state) :visible false)
+  (let [
+        player-layer (:tree/player-layer @a-state)
+        p-walk (tween/pp -256 0)
+        ]
+    (p/set! (:tree/title-layer @a-state) :visible false)
     (swap! a-state
            assoc
            :mode :game-op
@@ -328,96 +369,86 @@
                    goal-pos
                    -176
                    true)
-    (when-let [player-layer (:tree/player-layer @a-state)]
-      (util/set-properties! player-layer :visible true)
-      (util/register-tween! player-layer
-                            30
-                            (fn [^js player-layer progress]
-                              (util/set-properties! player-layer
-                                                    :x (* -256 (- 1 progress)))
-                              (when (= 1 progress)
-                                (swap! a-state assoc :mode :game)
-                                (util/set-property! (:tree/ui-action-button @a-state)
-                                                    :visible false)
-                                (util/set-property! (:tree/ui-layer @a-state)
-                                                    :visible true)
-                                ;; TODO
-                                ))))))
+    (p/set! player-layer :visible true)
+    (tween/register! player-layer
+                     30
+                     (fn [^js player-layer progress]
+                       (p/set! player-layer :x (tween/ap p-walk progress)))
+                     (fn [^js player-layer]
+                       (swap! a-state assoc :mode :game)
+                       (p/set! (:tree/ui-action-button @a-state)
+                               :visible false)
+                       (p/set! (:tree/ui-layer @a-state)
+                               :visible true)
+                       ;; TODO
+                       ))))
 
 (defn- make-title-layer [s-w s-h]
   [:tree/title-layer
-   (util/set-properties! (util/make-label (str "version:" util/VERSION)
-                                          :font-family "serif"
-                                          :font-size 24
-                                          )
-                         :anchor/x 0
-                         :anchor/y 1
-                         :x 8
-                         :y (- s-h 8)
-                         :name (name :tree/version-label))
-   (util/set-properties! (util/make-label "タイトル未定"
-                                          :font-size 96
-                                          )
-                         :anchor/x 0.5
-                         :anchor/y 0.5
-                         :x (* s-w 0.5)
-                         :y (* s-h 0.25)
-                         :name (name :tree/title-caption))
-   (util/set-properties! (util/->sp (dataurl/pudding))
-                         :anchor/x 0.5
-                         :anchor/y 0.5
-                         :scale/x 8
-                         :scale/y 8
-                         :x (* s-w 0.5)
-                         :y (* s-h 0.45)
-                         :name (name :tree/title-image))
-   (util/set-properties! (util/make-button "START"
-                                           emit-start!
-                                           :padding 64
-                                           )
-                         :x (* s-w 0.5)
-                         :y (* s-h 0.8)
-                         :name (name :tree/start-button))
+   (p/set! (util/make-label (str "version:" util/VERSION)
+                            :font-family "serif"
+                            :font-size 24
+                            )
+           :anchor/x 0
+           :anchor/y 1
+           :x 8
+           :y (- s-h 8)
+           :name (name :tree/version-label))
+   (p/set! (util/make-label "宇宙エルフの帰宅"
+                            :font-size 96
+                            )
+           :anchor/x 0.5
+           :anchor/y 0.5
+           :x (* s-w 0.5)
+           :y (* s-h 0.2)
+           :name (name :tree/title-caption))
+   (p/set! (putil/->sp (dataurl/pudding))
+           :anchor/x 0.5
+           :anchor/y 0.5
+           :scale/x 8
+           :scale/y 8
+           :x (* s-w 0.5)
+           :y (* s-h 0.4)
+           :name (name :tree/title-image))
+   (p/set! (util/make-button "START"
+                             emit-start!
+                             :padding 64
+                             )
+           :x (* s-w 0.5)
+           :y (* s-h 0.7)
+           :name (name :tree/start-button))
+   (p/set! (util/make-label "操作方法：マウス/タッチのみ"
+                            :font-size 48
+                            )
+           :scale/x 0.5
+           :scale/y 0.5
+           :anchor/x 0.5
+           :anchor/y 0.5
+           :x (* s-w 0.5)
+           :y (* s-h 0.9)
+           :name (name :tree/play-instruction))
    ])
 
 
-(defn- update-status-label! [& [status-label]]
-  (let [
-        status-label (or status-label (:tree/status-label @a-state))
-        ;{:keys [space-spd-x space-spd-y space-spd-z space-spd-yaw space-spd-pitch]} @a-state
-        score (or (:score @a-state) 0)
-        ^js player-layer (:tree/player-layer @a-state)
-        travel-point (or
-                       (when player-layer
-                         (.-x player-layer))
-                       0)
-        text (str " SCORE: " score
-                  "\n"
-                  "TRAVEL: " (int (/ travel-point 100)) "m"
-                  )
-        ]
-    (util/set-properties! status-label :text text)))
 
 
 
 
 (defn- make-ui-layer [s-w s-h]
-  (let [status-label (util/set-properties! (util/make-label ""
-                                                            :font-size 32
-                                                            :align "left"
-                                                            )
-                                          :anchor/x 0
-                                          :anchor/y 0
-                                          :x 16
-                                          :y 16
-                                          :name (name :tree/status-label))
+  (let [status-label (p/set! (util/make-label ""
+                                              :font-size 32
+                                              :align "left"
+                                              )
+                             :anchor/x 0
+                             :anchor/y 0
+                             :x 16
+                             :y 16
+                             :name (name :tree/status-label))
         b (fn [k label xr yr f]
-            (util/set-properties! (util/make-button label
-                                                    f
-                                                    :padding 32)
-                                  :x (* s-w xr)
-                                  :y (* s-h yr)
-                                  :name (name k)))]
+            (p/set! (util/make-button label f :padding 32)
+                    :x (* s-w xr)
+                    :y (* s-h yr)
+                    :name (name k)))]
     (update-status-label! status-label)
     [:tree/ui-layer
      {:visible false}
@@ -453,27 +484,23 @@
 (defn- move-ground! [^js sp x]
   (let [^js tex (.-texture sp)
         ^js frame (.-frame tex)
-        loop-w (util/property sp :-loop-w)]
+        loop-w (p/get sp :-loop-w)]
     (set-scroll-pos! sp (mod x loop-w) 0)))
 
 (defn- scroll-all-ground! [^js layer delta-x]
-  (let [^js children (.-children layer)
-        old-offset-x (util/property layer :-offset-x)
+  (let [old-offset-x (p/get layer :-offset-x)
         new-offset-x (+ old-offset-x delta-x)]
-    (util/set-property! layer :-offset-x new-offset-x)
-    (dotimes [i (alength children)]
-      (let [child (aget children i)]
-        (move-ground! child new-offset-x)))))
+    (p/set! layer :-offset-x new-offset-x)
+    (m/doseq-array-backward [child (.-children layer)]
+      (move-ground! child new-offset-x))))
 
 (defn- move-all-ground! [^js layer x]
-  (let [^js children (.-children layer)
-        offset-x (util/property layer :-offset-x)]
-    (dotimes [i (alength children)]
-      (let [child (aget children i)]
-        (move-ground! child (+ offset-x x))))))
+  (let [offset-x (p/get layer :-offset-x)]
+    (m/doseq-array-backward [child (.-children layer)]
+      (move-ground! child (+ offset-x x)))))
 
 (defn- make-ground [k s-w s-h adjust-h scale tint]
-  (let [^js tex (.clone (util/->tex :ground))
+  (let [^js tex (.clone (putil/->tex :ground))
         ^js base-tex (.-baseTexture tex)
         orig-w 1024
         orig-h 184
@@ -481,32 +508,32 @@
         ;; 通常のREPEATにする事にした
         ;wrap-mode pixi/WRAP_MODES.MIRRORED_REPEAT
         wrap-mode pixi/WRAP_MODES.REPEAT
-        _ (util/set-property! base-tex :wrap-mode wrap-mode)
-        _ (util/set-properties! tex
-                                :orig/width (/ orig-w scale)
-                                :orig/height (/ orig-h scale)
-                                )
+        _ (p/set! base-tex :wrap-mode wrap-mode)
+        _ (p/set! tex
+                  :orig/width (/ orig-w scale)
+                  :orig/height (/ orig-h scale)
+                  )
         x (/ s-w 2)
         y (- s-h 184 adjust-h)
         w orig-w
         h orig-h
         ;h (* orig-h scale)
-        sp (util/->sp tex)]
+        sp (putil/->sp tex)]
     (.updateUvs tex)
-    (util/set-properties! sp
-                          :anchor/x 0.5
-                          :anchor/y 0
-                          :x x
-                          :y y
-                          :width w
-                          :height h
-                          :tint tint
-                          :name (name k)
-                          ;; pixi/WRAP_MODES.MIRRORED_REPEAT の場合は
-                          ;; 元の2倍の長さ指定が必要になる
-                          :-loop-w (* orig-w 2)
-                          :-loop-h (* orig-h 2)
-                          )
+    (p/set! sp
+            :anchor/x 0.5
+            :anchor/y 0
+            :x x
+            :y y
+            :width w
+            :height h
+            :tint tint
+            :name (name k)
+            ;; pixi/WRAP_MODES.MIRRORED_REPEAT の場合は
+            ;; 元の2倍の長さ指定が必要になる
+            :-loop-w (* orig-w 2)
+            :-loop-h (* orig-h 2)
+            )
     sp))
 
 (defn- make-background-space-layer [s-w s-h]
@@ -533,18 +560,18 @@
                 ;:star-textures [...]
                 }
         ]
-    (util/set-properties! (space/make sightbox params)
-                          :name (name :tree/background-space-layer))))
+    (p/set! (space/make sightbox params)
+            :name (name :tree/background-space-layer))))
 
 (defn- make-touchpanel [s-w s-h]
   (let [
         ;; TODO
-        sp (util/set-properties! (util/sp16x16)
-                                 :width s-w
-                                 :height s-h
-                                 :alpha 0
-                                 :interactive true
-                                 :name (name :tree/touchpanel))
+        sp (p/set! (putil/sp16x16)
+                   :width s-w
+                   :height s-h
+                   :alpha 0
+                   :interactive true
+                   :name (name :tree/touchpanel))
         h (fn [^js e]
             (when e
               (when (= :game (:mode @a-state))
@@ -566,44 +593,44 @@
 (defn- make-player-layer []
   [:tree/player-layer
    {:visible false}
-   (util/set-properties! (util/->sp (dataurl/sphere))
-                         :anchor/x 0.5
-                         :anchor/y 0.5
-                         :scale/x 6
-                         :scale/y 1
-                         :alpha 0.5
-                         :tint 0x000000
-                         :name (name :tree/player-ds))
+   (p/set! (putil/->sp (dataurl/sphere))
+           :anchor/x 0.5
+           :anchor/y 0.5
+           :scale/x 6
+           :scale/y 1
+           :alpha 0.5
+           :tint 0x000000
+           :name (name :tree/player-ds))
    [:tree/player-effect-layer]
-   (util/set-properties! (util/->sp (dataurl/p8elf))
-                         :anchor/x 0.5
-                         :anchor/y 0.95
-                         :scale/x -8
-                         :scale/y 8
-                         :name (name :tree/player-sp))
+   (p/set! (putil/->sp (dataurl/p8elf))
+           :anchor/x 0.5
+           :anchor/y 0.95
+           :scale/x -8
+           :scale/y 8
+           :name (name :tree/player-sp))
    ])
 
 (defn- make-tree [s-w s-h]
   [:tree/root
    (make-touchpanel s-w s-h)
-   (util/set-properties! (util/sp16x16)
-                         :name (name :tree/background-black)
-                         :tint 0x00001F
-                         :x -64
-                         :y -64
-                         :width (+ s-w 128)
-                         :height (+ s-h 128)
-                         )
+   (p/set! (putil/sp16x16)
+           :name (name :tree/background-black)
+           :tint 0x00001F
+           :x -64
+           :y -64
+           :width (+ s-w 128)
+           :height (+ s-h 128)
+           )
    (make-background-space-layer s-w s-h)
    [:tree/back-layer
     ]
    (let [ground-base 96]
      [:tree/ground-layer
       {:-offset-x 0}
-      (make-ground :tree/far s-w s-h (+ ground-base 64 32) 0.25 0x7F7F7F)
-      (make-ground :tree/mid s-w s-h (+ ground-base 64) 0.5 0xBFBFBF)
-      (make-ground :tree/near s-w s-h (+ ground-base) 1 0xEFEFEF)
-      (make-ground :tree/nearest s-w s-h (+ ground-base -96) 2 0xFFFFFF)
+      (make-ground :tree/ground-far s-w s-h (+ ground-base 64 32) 0.25 0x7F7F7F)
+      (make-ground :tree/ground-mid s-w s-h (+ ground-base 64) 0.5 0xBFBFBF)
+      (make-ground :tree/ground-near s-w s-h (+ ground-base) 1 0xEFEFEF)
+      (make-ground :tree/ground-nearest s-w s-h (+ ground-base -96) 2 0xFFFFFF)
       ])
    [:tree/far-effect-layer]
    [:tree/scroll-base-layer
@@ -617,7 +644,7 @@
      [:tree/near-object-layer]
      [:tree/scroll-near-effect-layer]
      ]]
-   ;(make-gameover-layer s-w s-h)
+   (make-gameclear-layer s-w s-h)
    (make-ui-layer s-w s-h)
    (make-title-layer s-w s-h)
    [:tree/near-effect-layer]])
@@ -637,7 +664,7 @@
   (let [^js renderer (:renderer app)
         s-w (.-width renderer)
         s-h (.-height renderer)
-        ^js stage (util/build-container-tree (make-tree s-w s-h))
+        ^js stage (putil/build-container-tree (make-tree s-w s-h))
         ]
     (preload-audio!)
     (util/bgm! nil)
@@ -646,15 +673,14 @@
            :mode :title
            :score 0
            )
-    (util/index-container-tree! stage a-state :tree/*)
+    (putil/index-container-tree! stage a-state :tree/*)
     stage))
 
 
 (defn- destroy! [app]
-  ;(prn 'destroy!)
   (when-let [layer (:tree/background-space-layer @a-state)]
     (space/destroy! layer))
-  (util/dea! (:tree/root @a-state))
+  (putil/dea! (:tree/root @a-state))
   ;; TODO: a-state内の破棄が必要なものが残ってないかないか再確認
   (reset! a-state {}))
 
@@ -671,7 +697,7 @@
     ))
 
 (defn- move-object! [^js obj delta-frames]
-  (let [object-type (util/property obj :-object-type)
+  (let [object-type (p/get obj :-object-type)
         move-fn (:move-fn (@a-object-defs object-type))]
     (when move-fn
       (move-fn obj delta-frames))))
@@ -679,7 +705,7 @@
 ;;; NB: 衝突によって消滅しないobjは次フレームでもまた衝突している率が高いので、
 ;;;     連続衝突を避ける処理を入れる事！
 (defn- collide-object! [^js obj]
-  (let [object-type (util/property obj :-object-type)
+  (let [object-type (p/get obj :-object-type)
         collide-fn (:collide-fn (@a-object-defs object-type))]
     (when collide-fn
       (collide-fn obj))))
@@ -687,31 +713,27 @@
 
 
 (defn- process-object-layer! [layer delta-frames p-x p-y]
-  (let [^js children (.-children layer)
-        n (alength children)]
-    (dotimes [i n]
-      (let [i (- n i 1)
-            ^js obj (aget children i)
-            ^js hit-info (util/property obj :-hit-info)
-            too-far-distance 2048
-            old-x (.-x obj)
-            old-y (.-y obj)
-            _ (move-object! obj delta-frames)
-            new-x (.-x obj)
-            new-y (.-y obj)
-            hit-w (.-width hit-info)
-            hit-h (.-height hit-info)
-            ]
-        ;; TODO: ↓フレーム飛びによる貫通対策も必要！プレイヤーの前座標と現座標の線分、オブジェクトの前座標と現座標の線分、それぞれが一定以上長かったら衝突判定を複数回に分ける感じで
-        (util/set-properties! tmp-rect
-                              :x (- new-x (* hit-w (.-x hit-info)))
-                              :y (- new-y (* hit-h (.-y hit-info)))
-                              :width hit-w
-                              :height hit-h)
-        (when (.contains tmp-rect p-x p-y)
-          (collide-object! obj))
-        (when (< (+ (.-x tmp-rect) too-far-distance) p-x)
-          (util/dea! obj))))))
+  (m/doseq-array-backward [^js obj (.-children layer)]
+    (let [^js hit-info (p/get obj :-hit-info)
+          too-far-distance 2048
+          old-x (.-x obj)
+          old-y (.-y obj)
+          _ (move-object! obj delta-frames)
+          new-x (.-x obj)
+          new-y (.-y obj)
+          hit-w (.-width hit-info)
+          hit-h (.-height hit-info)
+          ]
+      ;; TODO: ↓フレーム飛びによる貫通対策も必要！プレイヤーの前座標と現座標の線分、オブジェクトの前座標と現座標の線分、それぞれが一定以上長かったら衝突判定を複数回に分ける感じで
+      (p/set! tmp-rect
+              :x (- new-x (* hit-w (.-x hit-info)))
+              :y (- new-y (* hit-h (.-y hit-info)))
+              :width hit-w
+              :height hit-h)
+      (when (.contains tmp-rect p-x p-y)
+        (collide-object! obj))
+      (when (< (+ (.-x tmp-rect) too-far-distance) p-x)
+        (putil/dea! obj)))))
 
 
 (defn- tick-player-ground-objs! [delta-frames]
@@ -725,6 +747,8 @@
                    (not (:wait-stop? @a-state)))
         max-spd-x 8
         min-spd-x (- max-spd-x)
+        max-spd-y 8
+        min-spd-y (- max-spd-y)
         base-acc-x 0.1
         base-acc-y 0.1
         top-p-y -1024
@@ -754,43 +778,36 @@
         new-spd-y (if trigger-jump?
                     initial-jump-spd-y
                     (+ old-spd-y (* base-acc-y delta-frames)))
+        new-spd-y (max min-spd-y (min new-spd-y max-spd-y))
         delta-p-y (* new-spd-y delta-frames)
         new-p-y (max top-p-y (min (+ old-p-y delta-p-y) 0))
         just-landed? (and
                        (not (zero? old-p-y))
                        (zero? new-p-y))
-        ;; 画面上でのプレイヤー位置を決める
+        ;; 画面上でのプレイヤー位置(カメラのフォーカス位置)を決める
+        ;; NB: 現状ではこれを動かすと、 :tree/far-object-layer 内の
+        ;;     オブジェクトも移動してしまう問題がある、注意
         scroll-adjust-x (max 0 (min player-screen-left new-p-x))
         ]
     (when (and last-pressed? (not pressed?))
       (swap! a-state assoc :last-pressed? false))
     (pos/set! last-spd new-spd-x new-spd-y)
     (when-not (zero? delta-p-x)
-      (util/set-property! player-layer :x new-p-x))
+      (p/set! player-layer :x new-p-x))
     (when-let [layer (:tree/ground-layer @a-state)]
       (move-all-ground! layer (- new-p-x scroll-adjust-x)))
     (when-not (= (int (/ old-p-x 100))
                  (int (/ new-p-x 100)))
       (update-status-label!))
     (when-let [layer (:tree/scroll-layer @a-state)]
-      (util/set-property! layer :x (- scroll-adjust-x new-p-x)))
-    (util/set-property! player-layer :x new-p-x)
-    (util/set-property! player-sp :y new-p-y)
+      (p/set! layer :x (- scroll-adjust-x new-p-x)))
+    (p/set! player-layer :x new-p-x)
+    (p/set! player-sp :y new-p-y)
     ;(when just-landed?
     ;  (util/se! :se/landing)
-    ;  (util/effect-smoke! (:tree/scroll-near-effect-layer @a-state)
-    ;                      15
-    ;                      :x new-p-x
-    ;                      :y new-p-y
-    ;                      :size 64
-    ;                      ))
+    ;  (emit-near-smoke! new-p-x new-p-y))
     (when trigger-jump?
-      (util/effect-smoke! (:tree/scroll-near-effect-layer @a-state)
-                          15
-                          :x old-p-x
-                          :y old-p-y
-                          :size 64
-                          )
+      (emit-near-smoke! old-p-x old-p-y)
       (util/vibrate! 50)
       (util/se! :se/puyo-psg :volume 0.5))
     (process-object-layer! (:tree/near-object-layer @a-state)
@@ -815,7 +832,6 @@
     (space/update! layer move-x move-y move-z yaw pitch)))
 
 (defn- tick! [app delta-frames]
-  (util/tick-tween! delta-frames)
   (let [
         ]
     (when-let [layer (:tree/background-space-layer @a-state)]
@@ -835,6 +851,5 @@
    :create create!
    :tick tick!
    :destroy destroy!})
-
 
 
