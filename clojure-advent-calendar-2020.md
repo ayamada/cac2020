@@ -18,7 +18,7 @@
     - ビルドツールとしてnpmを使い、leinやclojureコマンドなしで動く
         - `project.clj` や `deps.edn` の代わりに、npm用の `package.json` とcljs設定用の `shadow-cljs.edn` を書くのが基本
             - `project.clj` や `deps.edn` と連携するオプションやleiningenプラグインもあるよ(でも自分は詳しくないのでここでは割愛)
-    - 過去の記事として [@iku000888 さんの記事](https://qiita.com/iku000888/items/5c12c999c0d49cc2c4b0) や [@lambda-knight さんの去年のclojure-advent-calendarの記事](https://qiita.com/iku000888/items/5c12c999c0d49cc2c4b) があります。概要とかはこっちで！
+    - 過去の記事として [@iku000888 さんの記事](https://qiita.com/iku000888/items/5c12c999c0d49cc2c4b0) や [@lambda-knight さんの去年のclojure-advent-calendarの記事](https://qiita.com/lambda-knight/items/a69df35405b26f7a79cf) があります。概要とかはこっちで！
     - いつのまにか公式マニュアルが充実しているので、順番に見ていけば大体分かる(英語) → https://shadow-cljs.github.io/docs/UsersGuide.html
 
 
