@@ -6,16 +6,18 @@
     "clean": "shadow-cljs stop && rimraf .shadow-cljs .cpcache target src/gen public/cljs dist",
     "pack-zip": "node scripts/pack-zip.js",
     "deploy": "npm run clean && shadow-cljs release app && mkdirp dist && npm run pack-zip",
+    "preview": "http-server -a 127.0.0.1 ./public -p 8080 -o /",
     "env": "env"
   },
   "devDependencies": {
     "archiver": "^5.0.2",
+    "http-server": "^0.12.3",
     "mkdirp": "^1.0.4",
     "rimraf": "^3.0.2",
     "shadow-cljs": "^2.11.8"
   },
   "dependencies": {
     "pixi.js": "^5.3.3",
-    "va5": "^0.1.1"
+    "va5": "^0.2.0"
   }
 }

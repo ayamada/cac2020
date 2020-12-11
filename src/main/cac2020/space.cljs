@@ -66,9 +66,9 @@
             :scale/x sp-s
             :scale/y sp-s
             :alpha 0
-            :-dist dist
-            :-f-x f-x
-            :-f-y f-y
+            :--dist dist
+            :--f-x f-x
+            :--f-y f-y
             )))
 
 
@@ -79,9 +79,9 @@
                 nearest near far farthest
                 w h focus-x focus-y
                 star-base-scale]} sightbox
-        old-dist (p/get sp :-dist)
-        old-f-x (p/get sp :-f-x)
-        old-f-y (p/get sp :-f-y)
+        old-dist (p/get sp :--dist)
+        old-f-x (p/get sp :--f-x)
+        old-f-y (p/get sp :--f-y)
         angle (/ old-dist far)
         yaw-move-x (* yaw angle)
         pitch-move-y (* pitch angle)
@@ -142,9 +142,9 @@
                     :scale/x sp-s
                     :scale/y sp-s
                     :alpha new-a
-                    :-dist new-dist
-                    :-f-x new-f-x
-                    :-f-y new-f-y
+                    :--dist new-dist
+                    :--f-x new-f-x
+                    :--f-y new-f-y
                     ))
       :near (let [side? (zero? (rand-int 2))]
               (respawn-star! sightbox
@@ -174,10 +174,10 @@
 ;;; カメラのロールはなし(layerのrotationで実現可能なので)
 (defn update!
   [^js layer camera-move-x camera-move-y camera-move-z yaw pitch]
-  (let [sightbox (p/get layer :-sightbox)
-        old-camera-x (p/get layer :-camera-x)
-        old-camera-y (p/get layer :-camera-y)
-        old-camera-z (p/get layer :-camera-z)
+  (let [sightbox (p/get layer :--sightbox)
+        old-camera-x (p/get layer :--camera-x)
+        old-camera-y (p/get layer :--camera-y)
+        old-camera-z (p/get layer :--camera-z)
         new-camera-x (+ old-camera-x camera-move-x)
         new-camera-y (+ old-camera-y camera-move-y)
         new-camera-z (+ old-camera-z camera-move-z)
@@ -190,14 +190,14 @@
     (dotimes [i (alength children)]
       (let [^js sp (aget children i)]
         ;; TODO: ランダム星以外もこのレイヤに置く場合はここに分岐を追加
-        (assert (= ::star (p/get sp :-type)))
+        (assert (= ::star (p/get sp :--type)))
         (move-star! sp sightbox
                     camera-move-x camera-move-y camera-move-z
                     yaw pitch)))
     (p/set! layer
-            :-camera-x new-camera-x
-            :-camera-y new-camera-y
-            :-camera-z new-camera-z)))
+            :--camera-x new-camera-x
+            :--camera-y new-camera-y
+            :--camera-z new-camera-z)))
 
 
 
@@ -257,15 +257,15 @@
                 :anchor/x 0.5
                 :anchor/y 0.5
                 :tint tint
-                :-type ::star)
+                :--type ::star)
         (respawn-star! sightbox sp nil nil nil)
         (.addChild layer sp)))
     (p/set! layer
             :sortable-children (not dont-sort?)
-            :-sightbox sightbox
-            :-camera-x camera-x
-            :-camera-y camera-y
-            :-camera-z camera-z
+            :--sightbox sightbox
+            :--camera-x camera-x
+            :--camera-y camera-y
+            :--camera-z camera-z
             )
     layer))
 

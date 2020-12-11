@@ -1,6 +1,11 @@
 (ns cac2020.pointer
   (:require [cac2020.pos :as pos]))
 
+;;; TODO: `pointer` という名称が「スクリーン上のカーソル位置」の意味と
+;;;       「jsのイベント種別」という意味とがあり、どちらなのか分かりづらい。
+;;;       後者の名前は動かせないので、前者(およびこのnamespace自体も？)を
+;;;       もっと良い名前に変更する事
+
 ;;; TODO: 現在は .-clientX .-clientY で座標を取得しているが、これは
 ;;;       canvasが position: fixed である事に依存する。
 ;;;       .-pageX .-pageY で取得するようにすべきかもしれない。
@@ -64,18 +69,21 @@
 ;;;   (元イベントなしでハンドルが呼ばれるパターンがある為)
 
 (defn- process-pressed-handles! [pointer-id x y original-event]
+  ;(prn 'process-pressed-handles! pointer-id x y)
   (let [a @a-pressed-handle-table-array]
     (dotimes [i (alength a)]
       (let [h (aget a i)]
         (h pointer-id x y original-event)))))
 
 (defn- process-released-handles! [pointer-id x y original-event]
+  ;(prn 'process-released-handles! pointer-id x y)
   (let [a @a-released-handle-table-array]
     (dotimes [i (alength a)]
       (let [h (aget a i)]
         (h pointer-id x y original-event)))))
 
 (defn- process-moved-handles! [pointer-id x y original-event]
+  ;(prn 'process-moved-handles! pointer-id x y)
   (let [a @a-moved-handle-table-array]
     (dotimes [i (alength a)]
       (let [h (aget a i)]
@@ -86,6 +94,9 @@
 
 
 (defn- mouse-button-number->mouse-id [mouse-button-number]
+  (when ^boolean goog/DEBUG
+    (when (nil? mouse-button-number)
+      (prn ::found-nil-mouse-button-number)))
   (case mouse-button-number
     nil mouse-id-main ; タッチ環境などでありえる？とりあえず左クリック扱いに
     0 mouse-id-main
@@ -93,7 +104,10 @@
     2 mouse-id-second
     3 mouse-id-fourth
     4 mouse-id-fifth
-    mouse-id-misc))
+    (do
+      (when ^boolean goog/DEBUG
+        (prn ::found-unknown-mouse-button-number mouse-button-number))
+      mouse-id-misc)))
 
 
 
@@ -113,6 +127,7 @@
 
 
 (defn- update-pressed-pointer! [pointer-id x y original-event]
+  ;(prn :pressed pointer-id)
   (if-let [pos (@a-pointer-table pointer-id)]
     (do
       (pos/set-x! pos x)
@@ -133,6 +148,7 @@
   (process-touches! e update-pressed-pointer!))
 
 (defn- update-released-pointer! [pointer-id x y original-event]
+  ;(prn :released pointer-id)
   (swap! a-pointer-table dissoc pointer-id)
   ;; NB: releasedの時はlast-posを更新してはいけない
   ;;     (マルチタップ時に、離した座標よりも残ってる座標の方を優先してほしい)
@@ -150,6 +166,7 @@
 
 (defn- update-moved-pointer! [pointer-id x y original-event]
   ;; NB: pressedとは違い、個別pointerがない場合は何もしない
+  ;; NB: releasedと同時に発生した場合にconflictを起こさないようにする必要あり！
   (when-let [pos (@a-pointer-table pointer-id)]
     (pos/set-x! pos x)
     (pos/set-y! pos y))
@@ -256,17 +273,18 @@
 
 ;;; 補助ボタン系を除去する判定用
 (defn id-auxiliary? [id]
-  ;; TODO: nilの時の判定をどうするかはとても悩む。今はtrueにしているが、falseにすべきかもしれない。ある程度運用してみて決めたい
   (if (nil? id)
-    true
+    ;; TODO: nil時の判定をどうするかははとても悩む。ある程度運用してみて決める
+    false ; or true ?
     (neg? id)))
 
 (defn reset-all-status! []
   (doseq [[pointer-id pos] @a-pointer-table]
     (swap! a-pointer-table dissoc pointer-id)
+    (when ^boolean goog/DEBUG
+      (prn :freed-pointer-id pointer-id :by `reset-all-status!))
     ;; ここでもreleasedハンドルを実行するかはとても悩む
-    ;(process-released-handles! pointer-id (pos/->x pos) (pos/->y pos) nil)
-    ;; 考えた結果、今のところは実行しない事に…
+    ;; 考えた結果、今のところは実行しない事にした
     ))
 
 ;;; 引数なしだとシングル判定(補助ボタン系除く)、ありだとマルチ判定

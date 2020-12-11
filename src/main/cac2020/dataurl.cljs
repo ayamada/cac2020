@@ -38,13 +38,13 @@
              "FUCNdjYEAArgUMDEyrVjUwMGatdGBgDA11YGANDQ1AIkRDQ0OQCNPQ0BgG/tDQ"
              "DwwM//9DzAAAJ4wP2HtEC58AAAAASUVORK5CYII=")))
 
-;;; p8金髪緑服。11x15。
+;;; p8金髪緑服。12x15。
 (defn p8elf []
-  (t (m/str* "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAsAAAAPCAYAAAAy"
-             "PTUwAAAAe0lEQVQoka2QwQmAMAxFM1fFHXoxOIKDdBBPnoRO0hkcoEcvuZTvSb"
-             "GYBkEDj1zeD0mIPhQUdLHk8YEWUMVWACWP2JeuwpT9KpAUISnCr2LLp3hiyi7w"
-             "tYILbB85bUOFC6yLkiJc4ApJsfnrV1Oba1gyERFm7nHvv8lmHV7o1UPbOatgAA"
-             "AAAElFTkSuQmCC")))
+  (t (m/str* "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAwAAAAPCAMAAADn"
+             "P957AAAAAXNSR0IArs4c6QAAAB5QTFRFAAAA/+wn////AOQ2/8yqAIdR/6MAq1"
+             "I2Ka3/AAAANYLk7wAAAAp0Uk5TAP///////////36JFFYAAABDSURBVAiZbY1R"
+             "CsAwCEMtjZbc/8KLw9oy9vzJU1GzD0x2HgmvXMYRooVAdvgKRE88wvvCFF4ZLl"
+             "CPeAa1tsW4VL/SPL+fAfagHZb8AAAAAElFTkSuQmCC")))
 
 ;;; distance field処理済の、中塗りされた円。16x16。
 (defn sphere []
@@ -55,6 +55,17 @@
              "JLnL8AXMJGNh0QVaz8auFfTZz2jAODNFTJ+0HqQTZh5+Te2HOs91Kj3LOTuze2"
              "jFwb85newJLf+Qalm5IlQyJAsAAAAABJRU5ErkJggg==")))
 
+;;; 星。32x32。
+(defn star []
+  (t (m/str* "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgBAMAAACB"
+             "VGfHAAAAMFBMVEVHcEz//wD//wD//wD//wD//wD//wD//wD//wD//wD//wD//w"
+             "D//wD//wD//wD//wCz681+AAAAD3RSTlMA2grzGEg7dKu6YC/NII1F5mWjAAAA"
+             "1ElEQVQoz2NgwAGYFNAEuBagCTiKoAnUf0fls8h/dEARYP//vwDViP//UQ2p//"
+             "//O6oR//+jGKL+HwiKYG70Dn8pDBIwnFe6Behe1h7j/3BgeCKAgU3+PxL4mMDA"
+             "EIgsIAo0g1UeVQEDQyJCQAxsDcIUiAIGho2oChBK/myAObQfIvADHp7noSpg4c"
+             "prDxH4fAFmBkwgARbiMFtgIc8HZFs0A4kHUAGO//8tg1Qn///fABXQAfIZGIAi"
+             "QlCBi5aLQJTWZFmowI4lENqrGyqgxIDOQAYAtaau45JxTnYAAAAASUVORK5CYI"
+             "I=")))
 
 
 

@@ -5,7 +5,10 @@
 
 できたゲームはここから遊べます。
 
-(TODO: つくったゲームのurlをまずここに書く)
+- https://game.nicovideo.jp/atsumaru/games/gm17554
+
+この記事では、前半ではshadow-cljsについての簡単な説明や雑感を、後半ではこのゲームを実際にshadow-cljsで作ってみた際の大雑把な手順やメモを記入しています。
+実際のコードはgithubのリポジトリを直に確認してください。
 
 
 ## shadow-cljsについて
@@ -13,10 +16,10 @@
 - https://github.com/thheller/shadow-cljs
     - cljsのコードをdev実行したりホットリロードしたりprod出力したりできるやつ
     - ビルドツールとしてnpmを使い、leinやclojureコマンドなしで動く
-        - `project.clj` や `deps.edn` の代わりに、npm用の `package.json` とcljs設定用の `shadow-cljs.edn` を書く
-            - `project.clj` や `deps.edn` から、 `package.json` や `shadow-cljs.edn` を生成する奴も別に用意されてます
+        - `project.clj` や `deps.edn` の代わりに、npm用の `package.json` とcljs設定用の `shadow-cljs.edn` を書くのが基本
+            - `project.clj` や `deps.edn` と連携するオプションやleiningenプラグインもあるよ(でも自分は詳しくないのでここでは割愛)
     - 過去の記事として [@iku000888 さんの記事](https://qiita.com/iku000888/items/5c12c999c0d49cc2c4b0) や [@lambda-knight さんの去年のclojure-advent-calendarの記事](https://qiita.com/iku000888/items/5c12c999c0d49cc2c4b) があります。概要とかはこっちで！
-    - いつのまにか公式マニュアルが充実しているので、順番に見ていけば大体分かる(英語) https://shadow-cljs.github.io/docs/UsersGuide.html
+    - いつのまにか公式マニュアルが充実しているので、順番に見ていけば大体分かる(英語) → https://shadow-cljs.github.io/docs/UsersGuide.html
 
 
 ### shadow-cljsから感じ取れる思想について
@@ -55,7 +58,7 @@
     - たまに `.shadow-cljs/` の内部状態がこわれて正常なコンパイルが行えなくなる時がある？ので `lein clean` 的な奴を用意しておきたい
     - これもnpmの流儀で解決できる。 `npm i rimraf --save-dev` して `rm -rf` 相当を実行してくれるコマンドをインストールし、 package.json に `"scripts": {"clean": "shadow-cljs stop && rimraf .shadow-cljs public/cljs (他に消したいファイルがあればここに列挙)"}` みたいな感じで書く。これで `npm run clean` できるようになる
         - `shadow-cljs stop` しているのは、 `.shadow-cljs/` 等を消す際に、他でwatchしているshadow-cljsプロセスが生きているとよくなさそうなので。prod版をビルドするコマンドでも同様にこれを実行するようにしておくといい
-- 個人的にはwebpackの設計が好きじゃない
+- 個人的にwebpackの設計が好きじゃない(これは好みの話。動作には大体問題ない筈)
 
 
 ### 総合的には？
@@ -65,7 +68,7 @@
 - 一番大きいハードルは「ビルドツールがnpm」というところ
     - [lein-shadow](https://gitlab.com/nikperic/lein-shadow)みたいなのは一応あるけど、自動生成されるpackage.jsonやshadow-cljs.ednの内容についての知識がある前提になってる感
 - 欲を言うなら、WebAssemblyで動くclojure実装がほしい気はする
-    - 筆者は「cljsでゲーム制作」を考えているので実行速度は可能な限り稼ぎたい。またゲーム以外でも深層学習系の何かをやらせるならほしいかも。逆に言うならそれ以外では不要か？
+    - 筆者は「cljsでゲーム制作」を考えているので実行速度は可能な限り稼ぎたい。またゲーム以外でも深層学習や画像や動画やデータ加工のような処理をやらせるならほしいかも。逆に言うならそれ以外では不要か？
 
 
 ## 実際につかってみよう
@@ -85,7 +88,7 @@
 - `vim public/index.html`
 - `npm i`
 - `npx shadow-cljs watch app`
-- ブラウザから `http://localhost:8020/` を開く(port番号はshadow-cljs.ednの指定通りにする事)
+- ブラウザから `http://localhost:8020/` を開く(port番号はshadow-cljs.ednで指定したものと同じにする)
 - あとはひたすらインクリメンタル開発サイクルを回していく
 
 
@@ -95,13 +98,13 @@
 
 - jsライブラリを叩こう(pixi.js)
     - 生domも仮想domもめんどすぎる！だからcanvasにひきこもろう
-    - 筆者は [pixi.js](https://github.com/pixijs/pixi.js) を選ぶけど、好きなnpm配布のcanvas描画ライブラリを選べばok
+    - 筆者は [pixi.js](https://github.com/pixijs/pixi.js) を選ぶけど、npm配布のcanvas描画ライブラリは色々あるので好きな奴を選べばok
     - `npm i pixi.js --save`
         - すいません、これ例があまりよくなくて、ここに含まれてる `.js` は拡張子でも何でもなくて、単なるnpmパッケージ名の一部です。以降で「pixi.js」という文字列が出てきた時もそう解釈してください
     - あとは各cljs内のnsでrequireするだけ
         - 基本的にはnpmインストールしたjsモジュールのパッケージ名を文字列指定でrequireすればok
             - このpixiでの例だと、cljs側のコードは `(ns foo.bar (:require ["pixi.js" :as pixi]))` みたいになる。これで `(pixi/Container.)` でpixiのContainerインスタンスを生成できる
-        - …なのだけど、requireしたいnpmパッケージ側のexports定義の形によってオプション指定に `:as` を使うべきか `:refer` を使うべきか `:default` を使うべきかが違ってくる。詳細は https://shadow-cljs.github.io/docs/UsersGuide.html#_using_npm_packages を参照。よく分からなかったら順番に試していく(そんなにパターンが多い訳でもないので)
+        - しかし、requireしたいnpmパッケージ側のexports定義の形によってオプション指定に `:as` を使うべきか `:refer` を使うべきか `:default` を使うべきかが違ってくる。詳細は https://shadow-cljs.github.io/docs/UsersGuide.html#_using_npm_packages を参照。よく分からなかったら順番に試していく(そんなにパターンが多い訳でもないので)
 - ホットリロードしよう
     - ソースコード更新したら全自動で、開きっぱなしのブラウザページに再度流し込まれる
         - この辺はlein-cljsbuildやfigwheel-main等と同じ。必要に応じて `defonce` とか使ったりするのを検討しよう
@@ -124,7 +127,7 @@
         - 滅多にないけど、敢えて「ここのコードは `(set! (.-foo bar) 123)`  みたいにしているけど、このbarはcljsで生成した `(js-obj)` なのでfooのところはname manglingしてもokというかむしろしてほしい」みたいなケースもある。この時は、ここのbarに `^cljs` のtype hintをつけると警告の抑制だけしてくれる(externはしない)
     - これまでのcljsと同じように、別ファイルでextern定義を用意してもok。でもtype hintつける方がclojure流儀に合ってるし楽
 - リリース版で開発向けコードの除去をしよう
-    - `(when ^boolean js/goog.DEBUG ...)` としておけば、closure compilerが勝手にこのブロックを除去してくれる、との事。なお `^boolean` のtype hintをつけないと `if (cljs.core._truth(goog.DEBUG)){...}` というjsに展開されてしまいコード除去されなくなるらしい…
+    - `(when ^boolean js/goog.DEBUG ...)` としておけば、google closure compilerが勝手にこのブロックを除去してくれる、との事。なお `^boolean` のtype hintをつけないと `if (cljs.core._truth(goog.DEBUG)){...}` というjsに展開されてしまいコード除去されなくなるらしい…
 - リリースビルドのやりかた
     - lein clean相当のやりかた
         - 先にも書いたけど、標準では提供されてない！
@@ -146,22 +149,23 @@
     - 大雑把には「html5ゲームはzipに固めてダッシュボードからアップロード」という形
     - あと大体「ゲーム起動およびリサイズイベントによって、ゲーム画面(canvas要素)を自動的にブラウザウィンドウ内全画面化する」必要がある。そういうコードを組み込んでおく事
     - 利用したライブラリ等のライセンスを見れるようにしよう
-        - mitとかapache2のようなライセンスのライブラリしか使っていなければ、ゲームの公開サイトの説明欄にその名前とurlを列挙する(もしくはそういうページを別途用意してそのurlを貼る)だけでもライセンス要件を満たせます(と筆者は考えています)
+        - mitとかapache2のようなライセンスのライブラリしか使っていなければ、ゲームの公開サイトの説明欄にその名前とurlを列挙する(もしくはそういうページを別途用意してそのurlを貼る)だけでライセンス要件を満たせる
             - もちろんGPLとかの場合はもうちょっときちんとなんとかする必要あり
         - 今回はソースリポジトリのurl付きで公開しているのでサボってます(＝上記とほぼ同じ状態と言える筈なので)
-        - ゲーム内でメニューから選択して確認できると品質高い感が出ると思います
+        - 可能ならゲーム内でメニューから選択してライセンス文を確認できると品質高い感が出ると思います(面倒)
     - (optional)それぞれのサイト固有の機能を叩こう
         - アツマール : https://atsumaru.github.io/api-references/apis
         - itch.io : (未調査)
     - アップロードして最終動作確認を取り、ダッシュボードから「公開」状態にしよう
-        - TODO: アップロードしたurlをここに書く
+        - https://game.nicovideo.jp/atsumaru/games/gm17554
 
 
 ### 今後の課題
 
-- electronでデスクトップアプリ化しよう → これは簡単
-- サーバサイドもcljsのnode向け出力で書こう → java資産の代わりにnpm資産を使う必要あり。既存のclj資産もほとんど使えず、しんどい
-- cordova系の何かでスマホアプリ化しよう → 未知の領域
+1. electronでデスクトップアプリ化しよう → これは簡単
+2. サーバサイドもcljsのnode向け出力で書こう → java資産の代わりにnpm資産を使う必要あり。既存のclj資産もほとんど使えず、しんどい
+3. cordova系の何かでスマホアプリ化しよう → 未知の領域
+4. nintendo switchとかのゲーム専用機に進出しよう → これ可能なの？これを目指すのなら最初からunity向け.NET出力になる[Arcadia](https://arcadia-unity.github.io/)とかで始めた方がよいのでは？(筆者はインストールなし軽量起動が重要だと考えてるのでcljsを選ぶけど、そういう選択肢もある)
 
 
 ## よくある問題
@@ -195,16 +199,15 @@
     - アツマールやitch.ioに置けるぜ
     - 大体のPCやスマホで遊べるぜ
     - デスクトップアプリ化して、dlsiteやsteamとかで販売できるぜ
-    - スマホアプリ化して、google playやapp storeに置くのも視野に入るぜ(できるとは言ってない)
-    - nintendo switch上で動かすのも視野に入るぜ(公式にはパブリッシャーを通す必要あり)
+    - スマホアプリ化して、google playやapp storeに置くのも視野に入るぜ(簡単にできるとは言ってない)
     - WebGLゲーなら生domや仮想domにあんまり悩まされないぜ(少しは悩まされる)
     - つくったゲームがおもしろい出来になるかにcljsが有利も不利もないけど、自分の好きな言語で素早く開発サイクルを回していけるのは強いぜ
     - GCに気をつけようぜ
         - うっかりオブジェクト生成を毎フレーム起こしてしまうとやばいぜ
         - 明示的に解放する必要のあるjsインスタンスに気をつけようぜ
-        - ブラウザのjsエンジンによっては循環参照構造を持つfnは残り続けるかもしれないぜ(手で循環参照を断ち切れるようにしておこうぜ)
+        - ブラウザのjsエンジンによっては循環参照を持つ使い捨て無名関数がGCされないかもしれないぜ(手で循環参照を断ち切れるようにしておこうぜ)
     - ゲームは自由な発想で作らないと面白くならないぜ
-    - プレイヤーが「そのゲームの一番おもしろいところ」を味わう前にめげてやめてしまわないよう色々工夫しようぜ
+    - 「そのゲームの一番見てほしいところ」をプレイヤーが体験する前にめげてやめてしまわないよう色々工夫しようぜ
 
 
 

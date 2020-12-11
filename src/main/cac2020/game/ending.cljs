@@ -10,45 +10,29 @@
             [cac2020.pointer :as pointer]
             [cac2020.pixi.util :as putil]
             [cac2020.tween :as tween]
+            [cac2020.game.status :as status]
             ))
 
 
 
 
 
-(defn- resolve-flame1-texes []
-  (let [tex-src (putil/->tex :flame1)
-        tex0 (.clone tex-src)
-        tex1 (.clone tex-src)
-        tex2 (.clone tex-src)
-        setup-frame! (fn [idx t]
-                       (let [frame (.-frame t)
-                             w 80
-                             h 96
-                             x (* (mod idx 3) w)
-                             y (* (quot idx 3) h)]
-                         (set! (.-x frame) x)
-                         (set! (.-y frame) y)
-                         (set! (.-width frame) w)
-                         (set! (.-height frame) h)
-                         (.updateUvs t)
-                         t))]
-    (to-array (map-indexed setup-frame!
-                           [tex0 tex1 tex2]))))
+;(gain-clear-score! a-state (.-x goal) (- (.-y goal) 32))
+;(gain-clear-score! a-state (.-x player-layer) (.-y player-sp))
+(defn- gain-clear-score! [a-state x y]
+  (let [layer (:tree/scroll-near-effect-layer @a-state)
+        score-base 10000
+        elapsed-sec (:elapsed-sec @a-state)
+        score (- score-base elapsed-sec)
+        text (str "-" elapsed-sec "\n" score-base)]
+    (swap! a-state update :score + score)
+    (swap! a-state update :score max 0)
+    ;(util/se! :se/coin-psg)
+    (status/update-status-label! a-state)
+    (util/effect-score! layer text x y 240)))
 
 
-(defn- make-flame-sp [& [scale]]
-  (let [scale (or scale 1)]
-    (p/set! (pixi/AnimatedSprite. (resolve-flame1-texes))
-            :animation-speed 0.5
-            :anchor/x 0.5
-            :anchor/y 1
-            :scale/x scale
-            :scale/y (- scale))))
-
-
-
-(defn emit! [a-state ^js goal goal-pos update-status-label!]
+(defn emit! [a-state ^js goal goal-pos]
   (swap! a-state assoc :mode :ending)
   (util/bgm! nil)
   (let [^js lodge-sp (aget (.-children goal) 0)
@@ -58,16 +42,19 @@
         goal-x (+ (.-x goal) -12)
         goal-y (+ (.-y goal) 24)
         ;; TODO: もうちょっと継続が分かりやすいようにしたい。ただ今回は最小構成にしたいのでcore/asyncは使いたくない。いい方法を考えたいが…
+        congratulations! (fn [& _]
+                           (p/set! (:tree/gameclear-layer @a-state)
+                                   :visible true)
+                           (util/se! :se/lvup-midi))
         c6 (fn [_]
              ;; TODO
-             )
+             (gain-clear-score! a-state (.-x goal) (.-y goal))
+             (congratulations!))
         c5 (fn [_]
              (swap! a-state assoc :space-spd-pitch 0)
-             (tween/wait! player-layer
-                          120
-                          (fn [_]
-                            (p/set! (:tree/gameclear-layer @a-state) :visible true)
-                            (util/se! :se/lvup-midi)))
+             ;(tween/wait! player-layer
+             ;             240
+             ;             (congratulations!))
              (let [p-x (tween/pp (.-x goal) (- goal-pos 192))
                    p-y (tween/pp (.-y goal) -400)
                    p-s (tween/pp (p/get goal :scale/x) 0)
@@ -103,7 +90,7 @@
                    ground-mid (:tree/ground-mid @a-state)
                    ground-near (:tree/ground-near @a-state)
                    ground-nearest (:tree/ground-nearest @a-state)
-                   end-y 1024
+                   end-y (+ 960 256)
                    p-far (tween/pp (.-y ground-far) end-y)
                    p-mid (tween/pp (.-y ground-mid) end-y)
                    p-near (tween/pp (.-y ground-near) end-y)
@@ -118,9 +105,9 @@
                                   (p/set! ground-nearest :y (tween/ap p-nearest progress)))
                                 c5)))
         c3 (fn [_]
-             (util/vibrate! 500)
-             (util/se! :se/launch-psg)
-             (let [^js flame (p/set! (make-flame-sp 0.5)
+             (util/vibrate! 1000)
+             (util/se! :se/launch-psg :volume 0.5)
+             (let [^js flame (p/set! (util/make-flame-sp 0.5)
                                      :x 0
                                      :y 32
                                      :alpha 0)
@@ -131,8 +118,7 @@
                    near-object-layer (:tree/near-object-layer @a-state)
                    ]
                (.addChild goal flame)
-               (.play flame)
-               (tween/vibrate! lodge-sp ttl-frames 4 0)
+               (tween/vibrate! lodge-sp ttl-frames 8 0 nil true)
                (tween/register! goal
                                 ttl-frames
                                 (fn [^js o progress]
@@ -142,17 +128,16 @@
                                   (p/set! goal :y (tween/ap p-y progress)))
                                 c4)))
         c2 (fn [_]
-             ;; TODO: タイムボーナスをスコアに反映
-             (update-status-label!)
              (tween/wait! player-layer
                           30
                           (fn [_]
-                            (tween/vibrate! lodge-sp 120 0 4 c3))))
+                            (tween/vibrate! lodge-sp 120 0 8 c3 true))))
         p-pl-x (tween/pp (.-x player-layer) goal-x)
         p-pl-y (tween/pp (.-y player-layer) goal-y)
         p-pl-s (tween/pp 1 0.25)
         p-sp-y (tween/pp (.-y player-sp) -128)
         c1 (fn [_]
+             (status/update-status-label! a-state)
              (tween/wait! player-layer
                           30
                           (fn [_]

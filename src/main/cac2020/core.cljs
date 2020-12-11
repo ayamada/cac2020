@@ -119,7 +119,6 @@
     (.appendChild js/document.body canvas)
     (add-bg-image!)
     (dom/setup-canvas! canvas)
-    ;(util/setup-global-pointer!)
     (pointer/install!)
     (.addChild stage root-container)
     (.addChild stage loading-layer)
@@ -133,6 +132,7 @@
            :loading-layer loading-layer
            )
     (.add ticker tick!)
+    (util/enable-atsumaru-screenshot! renderer stage "image/png")
     (graft! game/lifecycle)))
 
 (defn- bootstrap-stage1! [js-args]
@@ -158,11 +158,11 @@
     (stub!)
     (tween/clear!)
     (catch :default e
-      (js/console.log e))))
+      (js/window.console.log e))))
 
 (defn- ^:dev/after-load start! []
   (try
     (graft! game/lifecycle)
     (catch :default e
-      (js/console.log e))))
+      (js/window.console.log e))))
 

@@ -8,6 +8,7 @@
 
 
 
+(defn destroyed? [o] (aget o "_destroyed"))
 
 
 (declare destroy-them-all!)
@@ -21,7 +22,7 @@
     (destroy-all-children! dobj)
     (when-let [parent (.-parent dobj)]
       (.removeChild parent dobj))
-    (when-not (aget dobj "_destroyed")
+    (when-not (destroyed? dobj)
       (.destroy dobj))))
 (def dac! destroy-all-children!)
 (def dta! destroy-them-all!)
@@ -167,7 +168,35 @@
 
 
 
+(defn set-nearest! [^js sp-or-tex]
+  (when sp-or-tex
+    (let [^js tex (if (instance? pixi/Sprite sp-or-tex)
+                    (.-texture sp-or-tex)
+                    sp-or-tex)
+          ^js btex (if (instance? pixi/Texture tex)
+                     (.-baseTexture tex)
+                     tex)]
+      (assert (instance? pixi/BaseTexture btex))
+      (set! (.-scaleMode btex) pixi/SCALE_MODES.NEAREST)
+      (.update btex)
+      sp-or-tex)))
 
+
+
+;;; NB: safariでこれを機能させるには、base-texのオリジナルサイズが
+;;;     power of twoでないといけないという強い制約がある、要注意
+(defn set-wrap-mode! [^js tex mode]
+  (assert (#{:clamp :repeat :mirrored-repeat} mode))
+  (let [^js base-tex (p/get tex :base-texture)]
+    (p/set! base-tex
+            :wrap-mode
+            (case mode
+              :clamp pixi/WRAP_MODES.CLAMP
+              :repeat pixi/WRAP_MODES.REPEAT
+              :mirrored-repeat pixi/WRAP_MODES.MIRRORED_REPEAT))
+    (.update base-tex)
+    (.update tex)
+    tex))
 
 
 

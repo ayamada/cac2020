@@ -95,7 +95,8 @@
 
 
 
-(defn vibrate! [^js target-obj ttl-frames power-start & [power-end cont]]
+(defn vibrate!
+  [^js target-obj ttl-frames power-start & [power-end cont only-x? only-y?]]
   (let [pp-power (pp power-start (or power-end 0))
         total (alength all-tween-entries)]
     (loop [i (dec total)]
@@ -107,11 +108,11 @@
               orig-y (.-y target-obj)
               h (fn [^js o progress]
                   (let [p (ap pp-power progress)
-                        r-p (inc (* 2 p))
-                        x (+ orig-x (- (rand r-p) p))
-                        y (+ orig-y (- (rand r-p) p))]
-                    (set! (.-x o) x)
-                    (set! (.-y o) y)
+                        r-p (inc (* 2 p))]
+                    (when-not only-y?
+                      (set! (.-x o) (+ orig-x (- (rand r-p) p))))
+                    (when-not only-x?
+                      (set! (.-y o) (+ orig-y (- (rand r-p) p))))
                     nil))
               done-h (fn [^js o]
                         (set! (.-x o) orig-x)

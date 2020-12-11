@@ -2,15 +2,17 @@
   (:refer-clojure :exclude [get set! assoc!])
   (:require [clojure.string :as string]))
 
-;;; TODO: kebab関連はnamespaceを分けるべきか？
 (defn kebab-string->camel-string [s]
   (assert (string? s))
-  (let [s (name s)
-        s (if-let [[_ m] (re-find #"^(.*)\?$" s)]
-            (str "is-" m)
-            s)
-        s (string/replace s #"(?<!^)-." #(string/upper-case (subs % 1)))]
-    s))
+  (let [s (name s)]
+    ;; `--` で始まる場合は、元の名前を維持する(cljs固有のプロパティ利用目的)
+    (if (re-find #"^--" s)
+      s
+      (let [s (if-let [[_ m] (re-find #"^(.*)\?$" s)]
+                (str "is-" m)
+                s)
+            s (string/replace s #"-." #(string/upper-case (subs % 1)))]
+        s))))
 
 (defn name->camel-string [k]
   (if (or (keyword? k) (symbol? k))
