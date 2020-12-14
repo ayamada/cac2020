@@ -5,6 +5,24 @@
 ゲーム本体は https://game.nicovideo.jp/atsumaru/games/gm17554 から実際にプレイできます。
 
 
+# 利用素材等について
+
+利用ライブラリ
+
+- [shadow-cljs](https://github.com/thheller/shadow-cljs)
+- [clojurescript](https://clojurescript.org/)およびclojurescript同梱の各種ライブラリ(goog類など)
+- [pixi.js](https://github.com/pixijs/pixi.js)
+- [va5](https://github.com/ayamada/va5)
+
+画像関連素材
+
+- 全て @ayamada 自作
+
+音響関連素材
+
+- 全て @ayamada 自作
+
+
 # ChangeLog
 
 - `1.20201211.0`
