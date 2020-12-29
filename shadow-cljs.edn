@@ -7,6 +7,10 @@
                 ;; 生成先を変更しておく
                 ;; (こうしておかないと、clean時に消しづらい為)
                 :output-dir "public/cljs"
+                ;; ブラウザから上記のcljsコンパイル結果にアクセスする際には、
+                ;; 上記の :output-dir から↑↑↑にある :root 部分を抜いた
+                ;; pathへとアクセスしに行かなくてはならない。
+                ;; その指定を :asset-path で行う。
                 :asset-path "cljs"
                 ;; NB: :modulesのkey名がjsファイル名になる。
                 ;;     :main なら cljs/main.js になる
