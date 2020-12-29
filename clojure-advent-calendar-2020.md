@@ -56,6 +56,7 @@
     - `npx shadow-cljs` の引数に `--config-merge '{EDN式}'` をつける事でビルド設定を一時的にmergeできる(merge実装はlein等と同様の[deep-merge](https://github.com/thheller/shadow-cljs/blob/023d9a2a8dbf008d1a26dc221468daade2746872/src/main/shadow/build/api.clj#L26))。 `shadow-cljs.edn` で細かくbuild-idやmoduleを分けるよりも、これをつけたコマンド列を `package.json` 内の `"scripts"` に定義した方がよいかもしれない
 - `lein clean` に相当する操作がデフォルトで提供されていない(ので自分で用意する必要がある)
     - たまに `.shadow-cljs/` の内部状態がこわれて正常なコンパイルが行えなくなる時がある？ので `lein clean` 的な奴を用意しておきたい
+        - どうもpackage.jsonやshadow-cljs.ednのdependenciesのバージョンを上げた時におかしくなる気がする…けど未検証
     - これもnpmの流儀で解決できる。 `npm i rimraf --save-dev` して `rm -rf` 相当を実行してくれるコマンドをインストールし、 package.json に `"scripts": {"clean": "shadow-cljs stop && rimraf .shadow-cljs public/cljs (他に消したいファイルがあればここに列挙)"}` みたいな感じで書く。これで `npm run clean` できるようになる
         - `shadow-cljs stop` しているのは、 `.shadow-cljs/` 等を消す際に、他でwatchしているshadow-cljsプロセスが生きているとよくなさそうなので。prod版をビルドするコマンドでも同様にこれを実行するようにしておくといい
 - 個人的にwebpackの設計が好きじゃない(これは好みの話。動作には大体問題ない筈)
