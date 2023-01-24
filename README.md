@@ -2,7 +2,7 @@
 
 記事本体は [clojure-advent-calendar-2020.md](clojure-advent-calendar-2020.md) にあります。
 
-ゲーム本体は https://game.nicovideo.jp/atsumaru/games/gm17554 から実際にプレイできます。
+ゲーム本体は https://ayamada.itch.io/return-of-the-elf-in-space から実際にプレイできます。
 
 
 # 利用素材等について

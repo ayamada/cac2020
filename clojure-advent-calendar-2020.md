@@ -5,7 +5,7 @@
 
 できたゲームはここから遊べます。
 
-- https://game.nicovideo.jp/atsumaru/games/gm17554
+- https://ayamada.itch.io/return-of-the-elf-in-space
 
 この記事では、前半ではshadow-cljsについての簡単な説明や雑感を、後半ではこのゲームを実際にshadow-cljsで作ってみた際の大雑把な手順やメモを記入しています。
 実際のコードはgithubのリポジトリを直に確認してください。
@@ -143,9 +143,8 @@
         - `npm i archiver --save-dev`
         - ここは結構nodeスクリプトを書く必要がある。詳細は [scripts/pack-zip.js](scripts/pack-zip.js) を参照
             - 理論上は、こういう雑用スクリプトもcljsで書いてコンパイルできる筈だけど…
-- できたzipをアツマールとかitch.ioとかにアップロードしよう
+- できたzipをitch.ioとかにアップロードしよう
     - それぞれのサイトの説明を読んで！！！！！
-        - アツマール : https://qa.nicovideo.jp/faq/show/6673
         - itch.io : https://itch.io/docs/creators/html5 (英語)
     - 大雑把には「html5ゲームはzipに固めてダッシュボードからアップロード」という形
     - あと大体「ゲーム起動およびリサイズイベントによって、ゲーム画面(canvas要素)を自動的にブラウザウィンドウ内全画面化する」必要がある。そういうコードを組み込んでおく事
@@ -155,10 +154,8 @@
         - 今回はソースリポジトリのurl付きで公開しているのでサボってます(＝上記とほぼ同じ状態と言える筈なので)
         - 可能ならゲーム内でメニューから選択してライセンス文を確認できると品質高い感が出ると思います(面倒)
     - (optional)それぞれのサイト固有の機能を叩こう
-        - アツマール : https://atsumaru.github.io/api-references/apis
-        - itch.io : (未調査)
     - アップロードして最終動作確認を取り、ダッシュボードから「公開」状態にしよう
-        - https://game.nicovideo.jp/atsumaru/games/gm17554
+        - https://ayamada.itch.io/return-of-the-elf-in-space
 
 
 ### 今後の課題
@@ -197,7 +194,7 @@
 ## 個人的な主張
 
 - みんなcljsでゲーム作ろうぜ
-    - アツマールやitch.ioに置けるぜ
+    - itch.ioに置けるぜ
     - 大体のPCやスマホで遊べるぜ
     - デスクトップアプリ化して、dlsiteやsteamとかで販売できるぜ
     - スマホアプリ化して、google playやapp storeに置くのも視野に入るぜ(簡単にできるとは言ってない)
